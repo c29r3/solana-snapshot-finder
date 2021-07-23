@@ -47,11 +47,10 @@ Start script
 
 ### Run via docker  
 ```
-cd ~; \
-mkdir snapshot; \
-chmod 777 snapshot; \
-docker run -it   --rm   \
--v $(pwd)/snapshot:/solana/snapshot   \
-c29r3/solana-snapshot-finder:latest   \
+sudo docker run -it --rm \
+-v ~/solana/validator-ledger:/solana/snapshot \
+--user $(id -u):$(id -g) \
+c29r3/solana-snapshot-finder:latest \
 --snapshot_path /solana/snapshot
 ```
+*`~/solana/validator-ledger` - path to validator-ledger, where snapshots stored*
