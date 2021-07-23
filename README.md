@@ -29,7 +29,23 @@ optional arguments:
 ```
 ![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)
 
-## Run via docker  
+### Without docker   
+Install requirements  
+```bash
+sudo apt-get update \
+&& sudo apt-get install python3-venv git -y \
+&& git clone https://github.com/c29r3/solana-snapshot-finder.git \
+&& cd solana-snapshot-finder \
+&& python3 -m venv venv \
+&& source ./venv/bin/activate \
+&& pip3 install -r requirements.txt
+```
+
+Start script  
+`python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger`
+`$HOME/solana/validator-ledger/` - path to your `validator-ledger`
+
+### Run via docker  
 ```
 cd ~; \
 mkdir snapshot; \
@@ -39,4 +55,3 @@ docker run -it   --rm   \
 c29r3/solana-snapshot-finder:latest   \
 --snapshot_path /solana/snapshot
 ```
-
