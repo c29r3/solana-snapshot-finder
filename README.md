@@ -27,6 +27,7 @@ optional arguments:
   --snapshot_path SNAPSHOT_PATH
                         The location where the snapshot will be downloaded (absolute path). Example: /home/ubuntu/solana/validator-ledger
 ```
+![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)
 
 ## Run via docker  
 ```
