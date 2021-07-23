@@ -42,10 +42,15 @@ sudo apt-get update \
 ```
 
 Start script  
+Mainnet  
 `python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger`  
 `$HOME/solana/validator-ledger/` - path to your `validator-ledger`
 
+TdS  
+`python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger -r http://api.testnet.solana.com`  
+
 ### Run via docker  
+Mainnet  
 ```
 sudo docker run -it --rm \
 -v ~/solana/validator-ledger:/solana/snapshot \
@@ -54,3 +59,13 @@ c29r3/solana-snapshot-finder:latest \
 --snapshot_path /solana/snapshot
 ```
 *`~/solana/validator-ledger` - path to validator-ledger, where snapshots stored*
+
+TdS  
+```bash
+sudo docker run -it --rm \
+-v ~/solana/validator-ledger:/solana/snapshot \
+--user $(id -u):$(id -g) \
+c29r3/solana-snapshot-finder:latest \
+--snapshot_path /solana/snapshot \
+-r http://api.testnet.solana.com
+```
