@@ -42,7 +42,7 @@ sudo apt-get update \
 ```
 
 Start script  
-`python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger`
+`python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger`  
 `$HOME/solana/validator-ledger/` - path to your `validator-ledger`
 
 ### Run via docker  
