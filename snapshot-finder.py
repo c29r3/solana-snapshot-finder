@@ -143,7 +143,11 @@ def get_snapshot_slot(rpc_address: str):
     try:
         r = do_request(url_=url, method_='head')
         if 'location' in str(r.headers) and 'error' not in str(r.text):
-            snap_slot_ = int(r.headers["location"].split("-")[1])
+            snap_location = r.headers["location"]
+            # filtering uncompressed archives
+            if snap_location.endswith('tar') is True:
+                return None
+            snap_slot_ = int(snap_location.split("-")[1])
             slots_diff = current_slot - snap_slot_
             if slots_diff <= MAX_SNAPSHOT_AGE_IN_SLOTS:
                 # print(f'{rpc_address=} | {slots_diff=}')
