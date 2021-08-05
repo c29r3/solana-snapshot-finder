@@ -10,7 +10,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.1.1")
+print("Version: 0.1.2")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
 parser.add_argument('-t', '--threads-count', default=100, type=int,
@@ -36,11 +36,16 @@ THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
 SPEED_MEASURE_TIME_SEC = args.measurement_time
 SNAPSHOT_PATH = args.snapshot_path
+NUM_OF_ATTEMPTS = 0
+NUM_OF_MAX_ATTEMPTS = 5
+current_slot = 0
+
 print(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
       f'{MIN_DOWNLOAD_SPEED_MB=}\n'
       f'{SNAPSHOT_PATH=}\n'
-      f'{THREADS_COUNT=}')
+      f'{THREADS_COUNT=}\n'
+      f'{NUM_OF_MAX_ATTEMPTS=}')
 
 try:
     f_ = open(f'{SNAPSHOT_PATH}/write_perm_test', 'w')
@@ -180,55 +185,72 @@ def download(url: str, fname: str):
             bar.update(size)
 
 
-current_slot = get_current_slot()
-print(f'{current_slot=}\n')
+def main_worker():
+    try:
+        print(f'{current_slot=}\n')
 
-rpc_nodes = list(set(get_all_rpc_ips()))
-print(f'{len(rpc_nodes)=}\n')
+        rpc_nodes = list(set(get_all_rpc_ips()))
+        print(f'{len(rpc_nodes)=}\n')
 
-print(f'getting all rpc snapshot slots')
-pool = ThreadPool()
-pool.map(get_snapshot_slot, rpc_nodes)
+        print(f'getting all rpc snapshot slots')
+        pool = ThreadPool()
+        pool.map(get_snapshot_slot, rpc_nodes)
 
-if len(json_data["rpc_nodes"]) == 0:
-    sys.exit(f'No snapshot nodes were found matching the given parameters:\n'
-             f'- {args.max_snapshot_age=}')
+        if len(json_data["rpc_nodes"]) == 0:
+            sys.exit(f'No snapshot nodes were found matching the given parameters:\n'
+                     f'- {args.max_snapshot_age=}')
 
-# sort list of rpc node by slots_diff
-rpc_nodes_sorted = sorted(json_data["rpc_nodes"], key=lambda k: k['slots_diff'])
+        # sort list of rpc node by slots_diff
+        rpc_nodes_sorted = sorted(json_data["rpc_nodes"], key=lambda k: k['slots_diff'])
 
-json_data.update({
-    "last_update_at": time.time(),
-    "last_update_slot": current_slot,
-    "total_rpc_nodes": len(rpc_nodes),
-    "rpc_nodes_with_actual_snapshot": len(json_data["rpc_nodes"]),
-    "rpc_nodes": rpc_nodes_sorted
-})
+        json_data.update({
+            "last_update_at": time.time(),
+            "last_update_slot": current_slot,
+            "total_rpc_nodes": len(rpc_nodes),
+            "rpc_nodes_with_actual_snapshot": len(json_data["rpc_nodes"]),
+            "rpc_nodes": rpc_nodes_sorted
+        })
 
-with open(f'{SNAPSHOT_PATH}/snapshot.json', "w") as result_f:
-    json.dump(json_data, result_f, indent=2)
-print(f'All data is saved to json file - {SNAPSHOT_PATH}/snapshot.json')
+        with open(f'{SNAPSHOT_PATH}/snapshot.json', "w") as result_f:
+            json.dump(json_data, result_f, indent=2)
+        print(f'All data is saved to json file - {SNAPSHOT_PATH}/snapshot.json')
 
-best_snapshot_node = {}
-for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
-    print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
-    down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
-    down_speed_mb = convert_size(down_speed_bytes)
-    if down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
-        print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
-        best_snapshot_node = rpc_node
-        break
-    else:
-        print(f'{down_speed_mb=} < {MIN_DOWNLOAD_SPEED_MB=}')
+        best_snapshot_node = {}
+        for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
+            print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
+            down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
+            down_speed_mb = convert_size(down_speed_bytes)
+            if down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
+                print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
+                best_snapshot_node = rpc_node
+                break
+            else:
+                print(f'{down_speed_mb=} < {MIN_DOWNLOAD_SPEED_MB=}')
 
-if best_snapshot_node is {}:
-    sys.exit(f'No snapshot nodes were found matching the given parameters:\n'
-             f'- {args.min_download_speed=}')
+        if best_snapshot_node is {}:
+            print(f'No snapshot nodes were found matching the given parameters:{args.min_download_speed=}\n'
+                  f'RETRY #{NUM_OF_ATTEMPTS}\\{NUM_OF_MAX_ATTEMPTS}')
+            return 1
 
-print(f'Downloading snapshot to {SNAPSHOT_PATH}')
-if SNAPSHOT_PATH != "" or SNAPSHOT_PATH is not None:
-    snap_name = f'{SNAPSHOT_PATH}{best_snapshot_node["snapshot_name"]}'
-else:
-    snap_name = f'{best_snapshot_node["snapshot_name"]}'
-download(url=best_snapshot_node["snapshot_address"], fname=snap_name)
-print("Done")
+        print(f'Downloading snapshot to {SNAPSHOT_PATH}')
+        if SNAPSHOT_PATH != "" or SNAPSHOT_PATH is not None:
+            snap_name = f'{SNAPSHOT_PATH}{best_snapshot_node["snapshot_name"]}'
+        else:
+            snap_name = f'{best_snapshot_node["snapshot_name"]}'
+        download(url=best_snapshot_node["snapshot_address"], fname=snap_name)
+        return 0
+
+    except:
+        return 1
+
+
+while NUM_OF_ATTEMPTS < 5:
+    current_slot = get_current_slot()
+    NUM_OF_ATTEMPTS += 1
+    worker_result = main_worker()
+    if worker_result == 0:
+        print("Done")
+        exit(0)
+
+    if NUM_OF_ATTEMPTS >= NUM_OF_MAX_ATTEMPTS:
+        sys.exit(f'Could not find a suitable snapshot')
