@@ -9,8 +9,9 @@ from requests import RequestException, Timeout
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
+import signal
 
-print("Version: 0.1.2")
+print("Version: 0.1.3")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
 parser.add_argument('-t', '--threads-count', default=100, type=int,
@@ -202,6 +203,8 @@ def main_worker():
 
         # sort list of rpc node by slots_diff
         rpc_nodes_sorted = sorted(json_data["rpc_nodes"], key=lambda k: k['slots_diff'])
+        # from pprint import pprint
+        # pprint(json_data)
 
         json_data.update({
             "last_update_at": time.time(),
@@ -216,6 +219,10 @@ def main_worker():
         print(f'All data is saved to json file - {SNAPSHOT_PATH}/snapshot.json')
 
         best_snapshot_node = {}
+        # If we assume that 1 slot = 400 ms, and the download speed check time is 15 seconds
+        # Then for 1 check the snapshot lags behind by 37.5 slots, for 10 by 375 slots
+        num_of_rpc_to_check = 10
+
         for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
             print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
             down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
@@ -224,6 +231,12 @@ def main_worker():
                 print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
                 best_snapshot_node = rpc_node
                 break
+            
+            elif i > num_of_rpc_to_check:
+                print(f'The limit on the number of RPC nodes from'
+                ' which we measure the speed has been reached {num_of_rpc_to_check=}\n')
+                break
+
             else:
                 print(f'{down_speed_mb=} < {MIN_DOWNLOAD_SPEED_MB=}')
 
@@ -248,9 +261,12 @@ while NUM_OF_ATTEMPTS < 5:
     current_slot = get_current_slot()
     NUM_OF_ATTEMPTS += 1
     worker_result = main_worker()
+
     if worker_result == 0:
         print("Done")
         exit(0)
 
     if NUM_OF_ATTEMPTS >= NUM_OF_MAX_ATTEMPTS:
         sys.exit(f'Could not find a suitable snapshot')
+    
+    signal.signal(signal.SIGINT, sys.exit('\nYou pressed Ctrl+C!'))
