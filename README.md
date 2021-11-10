@@ -4,7 +4,7 @@ Automatic search and download of snapshots for Solana
 ## Navigation  
 
 * [Description](#what-exactly-does-the-script-do)
-* [Getting Started](#referring-to-items)
+* [Getting Started]()
     - [Using docker](#run-via-docker) *champions choice 🙂
     - [Without docker](#without-docker) *You can, but you better not 🙂
 * [How to update](#Update)
