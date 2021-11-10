@@ -13,7 +13,8 @@ Automatic search and download of snapshots for Solana
 1. Finds all available RPCs  
 2. Get the number of the current slot  
 3. In multi-threaded mode, checks the slot numbers of all snapshots on all RPCs  
-4. Sorts from newest snapshots to older  
+*Starting from version 0.1.3, only the first 10 RPCs speed are tested in a loop. [See details here](https://github.com/c29r3/solana-snapshot-finder/releases/tag/0.1.3)
+5. Sorts from newest snapshots to older  
 `slots_diff = current_slot - snapshot_slot`
 5. Checks the download speed from RPC with the most recent snapshot. If `download_speed <min_download_speed`, then it checks the speed at the next node.  
 6. Download snapshot  
