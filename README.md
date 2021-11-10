@@ -1,6 +1,14 @@
 # solana-snapshot-finder
 Automatic search and download of snapshots for Solana  
 
+## Navigation  
+
+* [Description](#what-exactly-does-the-script-do)
+* [Getting Started](#referring-to-items)
+    - [Using docker](#run-via-docker) *champions choice 🙂
+    - [Without docker](#without-docker) *You can, but you better not 🙂
+* [How to update](#Update)
+
 ## What exactly does the script do:  
 1. Finds all available RPCs  
 2. Get the number of the current slot  
@@ -73,3 +81,6 @@ c29r3/solana-snapshot-finder:latest \
 --snapshot_path /solana/snapshot \
 -r http://api.testnet.solana.com
 ```
+
+## Update  
+`docker pull c29r3/solana-snapshot-finder:latest`
