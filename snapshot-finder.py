@@ -269,4 +269,4 @@ while NUM_OF_ATTEMPTS < 5:
     if NUM_OF_ATTEMPTS >= NUM_OF_MAX_ATTEMPTS:
         sys.exit(f'Could not find a suitable snapshot')
     
-    signal.signal(signal.SIGINT, sys.exit('\nYou pressed Ctrl+C!'))
+    # signal.signal(signal.SIGINT, sys.exit('\nYou pressed Ctrl+C!'))
