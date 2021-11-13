@@ -19,6 +19,8 @@ Automatic search and download of snapshots for Solana
 5. Checks the download speed from RPC with the most recent snapshot. If `download_speed <min_download_speed`, then it checks the speed at the next node.  
 6. Download snapshot  
 ```bash
+usage: snapshot-finder.py [-h] [-t THREADS_COUNT] [-r RPC_ADDRESS] [--max_snapshot_age MAX_SNAPSHOT_AGE] [--min_download_speed MIN_DOWNLOAD_SPEED] [--measurement_time MEASUREMENT_TIME] [--snapshot_path SNAPSHOT_PATH] [--num_of_retries NUM_OF_RETRIES]
+
 Solana snapshot finder
 
 optional arguments:
@@ -35,6 +37,8 @@ optional arguments:
                         Time in seconds during which the script will measure the download speed
   --snapshot_path SNAPSHOT_PATH
                         The location where the snapshot will be downloaded (absolute path). Example: /home/ubuntu/solana/validator-ledger
+  --num_of_retries NUM_OF_RETRIES
+                        The number of retries if a suitable server for downloading the snapshot was not found
 ```
 ![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)
 
