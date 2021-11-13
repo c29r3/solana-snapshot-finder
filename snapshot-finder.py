@@ -22,8 +22,8 @@ parser.add_argument('-r', '--rpc_address',
     help='RPC address of the node from which the current slot number will be taken\n'
          'https://api.mainnet-beta.solana.com')
 
-parser.add_argument('--max_snapshot_age', default=400, type=int, help='How many slots ago the snapshot was created (in slots)')
-parser.add_argument('--min_download_speed', default=30, type=int, help='Minimum average snapshot download speed in megabytes')
+parser.add_argument('--max_snapshot_age', default=600, type=int, help='How many slots ago the snapshot was created (in slots)')
+parser.add_argument('--min_download_speed', default=25, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--measurement_time', default=15, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
