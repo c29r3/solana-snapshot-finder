@@ -9,9 +9,9 @@ from requests import RequestException, Timeout
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
-import signal
 
-print("Version: 0.1.3")
+print("Version: 0.1.5")
+print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
 parser.add_argument('-t', '--threads-count', default=100, type=int,
@@ -27,6 +27,7 @@ parser.add_argument('--min_download_speed', default=25, type=int, help='Minimum 
 parser.add_argument('--measurement_time', default=15, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
+parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
 args = parser.parse_args()
 print(args.rpc_address)
 
@@ -37,8 +38,8 @@ THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
 SPEED_MEASURE_TIME_SEC = args.measurement_time
 SNAPSHOT_PATH = args.snapshot_path
-NUM_OF_ATTEMPTS = 0
-NUM_OF_MAX_ATTEMPTS = 5
+NUM_OF_ATTEMPTS = 1
+NUM_OF_MAX_ATTEMPTS = args.num_of_retries
 current_slot = 0
 
 print(f'{RPC=}\n'
@@ -142,8 +143,7 @@ def get_all_rpc_ips():
         return rpc_ips
 
     else:
-        print(f'Can\'t get RPC ip addresses {r.text}')
-        exit(1)
+        sys.exit(f'Can\'t get RPC ip addresses {r.text}')
 
 
 def get_snapshot_slot(rpc_address: str):
@@ -188,12 +188,12 @@ def download(url: str, fname: str):
 
 def main_worker():
     try:
-        print(f'{current_slot=}\n')
+        print(f'Current slot number: {current_slot}\n')
 
         rpc_nodes = list(set(get_all_rpc_ips()))
-        print(f'{len(rpc_nodes)=}\n')
+        print(f'Found {len(rpc_nodes)} RPC servers in total\n')
 
-        print(f'getting all rpc snapshot slots')
+        print(f'Searching information about snapshots on all found RPCs')
         pool = ThreadPool()
         pool.map(get_snapshot_slot, rpc_nodes)
 
@@ -253,12 +253,16 @@ def main_worker():
         download(url=best_snapshot_node["snapshot_address"], fname=snap_name)
         return 0
 
+    except KeyboardInterrupt:
+        sys.exit('\nKeyboardInterrupt - ctrl + c')
+
     except:
         return 1
 
 
-while NUM_OF_ATTEMPTS < 5:
+while NUM_OF_ATTEMPTS < NUM_OF_MAX_ATTEMPTS:
     current_slot = get_current_slot()
+    print(f'Attempt number: {NUM_OF_ATTEMPTS}. Total attempts: {NUM_OF_MAX_ATTEMPTS}')
     NUM_OF_ATTEMPTS += 1
     worker_result = main_worker()
 
@@ -268,5 +272,3 @@ while NUM_OF_ATTEMPTS < 5:
 
     if NUM_OF_ATTEMPTS >= NUM_OF_MAX_ATTEMPTS:
         sys.exit(f'Could not find a suitable snapshot')
-    
-    # signal.signal(signal.SIGINT, sys.exit('\nYou pressed Ctrl+C!'))
