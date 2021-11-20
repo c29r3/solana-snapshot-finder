@@ -24,7 +24,7 @@ parser.add_argument('-r', '--rpc_address',
 
 parser.add_argument('--max_snapshot_age', default=600, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=25, type=int, help='Minimum average snapshot download speed in megabytes')
-parser.add_argument('--measurement_time', default=15, type=int, help='Time in seconds during which the script will measure the download speed')
+parser.add_argument('--measurement_time', default=7, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
