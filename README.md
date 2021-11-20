@@ -7,7 +7,7 @@ Automatic search and download of snapshots for Solana
 * [Getting Started]()
     - [Using docker](#run-via-docker)  
     - [Without docker](#without-docker) *You can, but you better not 🙂
-* [How to update](#Update)
+* [How to update](#update)
 
 ## What exactly does the script do:  
 1. Finds all available RPCs  
