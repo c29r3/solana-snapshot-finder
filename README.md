@@ -74,7 +74,8 @@ sudo docker run -it --rm \
 -v ~/solana/validator-ledger:/solana/snapshot \
 --user $(id -u):$(id -g) \
 c29r3/solana-snapshot-finder:latest \
---snapshot_path /solana/snapshot
+--snapshot_path /solana/snapshot \
+--order_by_latency
 ```
 *`~/solana/validator-ledger` - path to validator-ledger, where snapshots stored*
 
@@ -85,7 +86,8 @@ sudo docker run -it --rm \
 --user $(id -u):$(id -g) \
 c29r3/solana-snapshot-finder:latest \
 --snapshot_path /solana/snapshot \
--r http://api.testnet.solana.com
+-r http://api.testnet.solana.com \
+--order_by_latency
 ```
 
 ## Update  
