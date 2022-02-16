@@ -10,7 +10,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.1.6")
+print("Version: 0.1.7")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -28,7 +28,6 @@ parser.add_argument('--measurement_time', default=7, type=int, help='Time in sec
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
-parser.add_argument('--order_by_latency', help='To order nodes by latency and not slot diff', action='store_true')
 args = parser.parse_args()
 print(args.rpc_address)
 
@@ -41,7 +40,7 @@ SPEED_MEASURE_TIME_SEC = args.measurement_time
 SNAPSHOT_PATH = args.snapshot_path
 NUM_OF_ATTEMPTS = 1
 NUM_OF_MAX_ATTEMPTS = args.num_of_retries
-SORT_ORDER = "latency" if args.order_by_latency else "slots_diff"
+SORT_ORDER = "latency"
 current_slot = 0
 
 print(f'{RPC=}\n'
@@ -204,7 +203,7 @@ def main_worker():
             sys.exit(f'No snapshot nodes were found matching the given parameters:\n'
                      f'- {args.max_snapshot_age=}')
 
-        # sort list of rpc node by SORT_ORDER (slots_diff or latency)
+        # sort list of rpc node by SORT_ORDER (latency)
         rpc_nodes_sorted = sorted(json_data["rpc_nodes"], key=lambda k: k[SORT_ORDER])
         # from pprint import pprint
         # pprint(json_data)
@@ -263,7 +262,7 @@ def main_worker():
         return 1
 
 
-while NUM_OF_ATTEMPTS < NUM_OF_MAX_ATTEMPTS:
+while NUM_OF_ATTEMPTS <= NUM_OF_MAX_ATTEMPTS:
     current_slot = get_current_slot()
     print(f'Attempt number: {NUM_OF_ATTEMPTS}. Total attempts: {NUM_OF_MAX_ATTEMPTS}')
     NUM_OF_ATTEMPTS += 1
