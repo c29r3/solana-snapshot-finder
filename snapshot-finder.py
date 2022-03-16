@@ -235,12 +235,16 @@ def main_worker():
             print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
             if rpc_node["snapshot_address"] in unsuitable_servers:
                 print(f'Rpc node already in unsuitable list --> skip {rpc_node["snapshot_address"]}')
+                continue
+                
+            down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
+            down_speed_mb = convert_size(down_speed_bytes)
+            if down_speed_bytes < MIN_DOWNLOAD_SPEED_MB * 1e6:
+                print(f'Too slow: {rpc_node=} {down_speed_mb=}')
                 unsuitable_servers.add(rpc_node["snapshot_address"])
                 continue
 
-            down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
-            down_speed_mb = convert_size(down_speed_bytes)
-            if down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
+            elif down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
                 print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
                 best_snapshot_node = rpc_node
                 break
@@ -257,6 +261,14 @@ def main_worker():
             print(f'No snapshot nodes were found matching the given parameters:{args.min_download_speed=}\n'
                   f'RETRY #{NUM_OF_ATTEMPTS}\\{NUM_OF_MAX_ATTEMPTS}')
             return 1
+
+        print(f'Downloading snapshot to {SNAPSHOT_PATH}')
+        if SNAPSHOT_PATH != "" or SNAPSHOT_PATH is not None:
+            snap_name = f'{SNAPSHOT_PATH}{best_snapshot_node["snapshot_name"]}'
+        else:
+            snap_name = f'{best_snapshot_node["snapshot_name"]}'
+        download(url=best_snapshot_node["snapshot_address"], fname=snap_name)
+        return 0
 
     except KeyboardInterrupt:
         sys.exit('\nKeyboardInterrupt - ctrl + c')
