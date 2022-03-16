@@ -10,7 +10,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.1.7")
+print("Version: 0.1.8")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -22,8 +22,9 @@ parser.add_argument('-r', '--rpc_address',
     help='RPC address of the node from which the current slot number will be taken\n'
          'https://api.mainnet-beta.solana.com')
 
-parser.add_argument('--max_snapshot_age', default=600, type=int, help='How many slots ago the snapshot was created (in slots)')
+parser.add_argument('--max_snapshot_age', default=900, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=25, type=int, help='Minimum average snapshot download speed in megabytes')
+parser.add_argument('--max_latency', default=65, type=int, help='The maximum value of latency (milliseconds). If latency > max_latency --> skip')
 parser.add_argument('--measurement_time', default=7, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
@@ -37,11 +38,15 @@ MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
 THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
 SPEED_MEASURE_TIME_SEC = args.measurement_time
+MAX_LATENCY = args.max_latency
 SNAPSHOT_PATH = args.snapshot_path
-NUM_OF_ATTEMPTS = 1
 NUM_OF_MAX_ATTEMPTS = args.num_of_retries
+NUM_OF_ATTEMPTS = 1
 SORT_ORDER = "latency"
+
 current_slot = 0
+# skip servers that do not fit the filters so as not to check them again
+unsuitable_servers = set()
 
 print(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
@@ -136,7 +141,6 @@ def get_current_slot():
 
 
 def get_all_rpc_ips():
-    print("get_all_rpc_ips()")
     d = '{"jsonrpc":"2.0", "id":1, "method":"getClusterNodes"}'
     r = do_request(url_=RPC, method_='post', data_=d)
     if 'result' in str(r.text):
@@ -148,6 +152,7 @@ def get_all_rpc_ips():
 
 
 def get_snapshot_slot(rpc_address: str):
+    pbar.update(1)
     url = f'http://{rpc_address}/snapshot.tar.bz2'
     try:
         r = do_request(url_=url, method_='head')
@@ -158,7 +163,7 @@ def get_snapshot_slot(rpc_address: str):
                 return None
             snap_slot_ = int(snap_location.split("-")[1])
             slots_diff = current_slot - snap_slot_
-            if slots_diff <= MAX_SNAPSHOT_AGE_IN_SLOTS:
+            if slots_diff <= MAX_SNAPSHOT_AGE_IN_SLOTS and r.elapsed.total_seconds() * 1000 < MAX_LATENCY:
                 # print(f'{rpc_address=} | {slots_diff=}')
                 json_data["rpc_nodes"].append({
                     "snapshot_address": url,
@@ -190,14 +195,17 @@ def download(url: str, fname: str):
 
 def main_worker():
     try:
-        print(f'Current slot number: {current_slot}\n')
-
         rpc_nodes = list(set(get_all_rpc_ips()))
-        print(f'Found {len(rpc_nodes)} RPC servers in total\n')
+        global pbar
+        pbar = tqdm(total=len(rpc_nodes))
+        print(f'RPC servers in total: {len(rpc_nodes)} \nCurrent slot number: {current_slot}\n')
 
         print(f'Searching information about snapshots on all found RPCs')
         pool = ThreadPool()
         pool.map(get_snapshot_slot, rpc_nodes)
+        print(f'Found suitable RPCs: {len(json_data["rpc_nodes"])}')
+        # from pprint import pprint
+        # pprint(json_data)
 
         if len(json_data["rpc_nodes"]) == 0:
             sys.exit(f'No snapshot nodes were found matching the given parameters:\n'
@@ -205,8 +213,6 @@ def main_worker():
 
         # sort list of rpc node by SORT_ORDER (latency)
         rpc_nodes_sorted = sorted(json_data["rpc_nodes"], key=lambda k: k[SORT_ORDER])
-        # from pprint import pprint
-        # pprint(json_data)
 
         json_data.update({
             "last_update_at": time.time(),
@@ -223,10 +229,15 @@ def main_worker():
         best_snapshot_node = {}
         # If we assume that 1 slot = 400 ms, and the download speed check time is 15 seconds
         # Then for 1 check the snapshot lags behind by 37.5 slots, for 10 by 375 slots
-        num_of_rpc_to_check = 10
+        num_of_rpc_to_check = 15
 
         for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
             print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
+            if rpc_node["snapshot_address"] in unsuitable_servers:
+                print(f'Rpc node already in unsuitable list --> skip {rpc_node["snapshot_address"]}')
+                unsuitable_servers.add(rpc_node["snapshot_address"])
+                continue
+
             down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
             down_speed_mb = convert_size(down_speed_bytes)
             if down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
@@ -246,14 +257,6 @@ def main_worker():
             print(f'No snapshot nodes were found matching the given parameters:{args.min_download_speed=}\n'
                   f'RETRY #{NUM_OF_ATTEMPTS}\\{NUM_OF_MAX_ATTEMPTS}')
             return 1
-
-        print(f'Downloading snapshot to {SNAPSHOT_PATH}')
-        if SNAPSHOT_PATH != "" or SNAPSHOT_PATH is not None:
-            snap_name = f'{SNAPSHOT_PATH}{best_snapshot_node["snapshot_name"]}'
-        else:
-            snap_name = f'{best_snapshot_node["snapshot_name"]}'
-        download(url=best_snapshot_node["snapshot_address"], fname=snap_name)
-        return 0
 
     except KeyboardInterrupt:
         sys.exit('\nKeyboardInterrupt - ctrl + c')

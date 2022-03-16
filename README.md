@@ -6,7 +6,7 @@ Automatic search and download of snapshots for Solana
 * [Description](#what-exactly-does-the-script-do)
 * [Getting Started]()
     - [Using docker](#run-via-docker)  
-    - [Without docker](#without-docker) *You can, but you better not 🙂
+    - [Without docker](#without-docker)  
 * [How to update](#update)
 
 ## What exactly does the script do:  
@@ -14,12 +14,13 @@ Automatic search and download of snapshots for Solana
 2. Get the number of the current slot  
 3. In multi-threaded mode, checks the slot numbers of all snapshots on all RPCs  
 *Starting from version 0.1.3, only the first 10 RPCs speed are tested in a loop. [See details here](https://github.com/c29r3/solana-snapshot-finder/releases/tag/0.1.3)
-5. Sorts from newest snapshots to older  
+5. List of RPCs sorted by lowest latency
 `slots_diff = current_slot - snapshot_slot`
 5. Checks the download speed from RPC with the most recent snapshot. If `download_speed <min_download_speed`, then it checks the speed at the next node.  
 6. Download snapshot  
 ```bash
-usage: snapshot-finder.py [-h] [-t THREADS_COUNT] [-r RPC_ADDRESS] [--max_snapshot_age MAX_SNAPSHOT_AGE] [--min_download_speed MIN_DOWNLOAD_SPEED] [--measurement_time MEASUREMENT_TIME] [--snapshot_path SNAPSHOT_PATH] [--num_of_retries NUM_OF_RETRIES] [--order_by_latency]
+usage: snapshot-finder.py [-h] [-t THREADS_COUNT] [-r RPC_ADDRESS] [--max_snapshot_age MAX_SNAPSHOT_AGE] [--min_download_speed MIN_DOWNLOAD_SPEED] [--max_latency MAX_LATENCY] [--measurement_time MEASUREMENT_TIME]
+                          [--snapshot_path SNAPSHOT_PATH] [--num_of_retries NUM_OF_RETRIES]
 
 Solana snapshot finder
 
@@ -33,6 +34,8 @@ optional arguments:
                         How many slots ago the snapshot was created (in slots)
   --min_download_speed MIN_DOWNLOAD_SPEED
                         Minimum average snapshot download speed in megabytes
+  --max_latency MAX_LATENCY
+                        The maximum value of latency (milliseconds). If latency > max_latency --> skip
   --measurement_time MEASUREMENT_TIME
                         Time in seconds during which the script will measure the download speed
   --snapshot_path SNAPSHOT_PATH
