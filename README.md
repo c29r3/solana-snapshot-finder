@@ -72,6 +72,7 @@ python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger -r http
 ### Run via docker  
 Mainnet  
 ```bash
+docker pull c29r3/solana-snapshot-finder:latest; \
 sudo docker run -it --rm \
 -v ~/solana/validator-ledger:/solana/snapshot \
 --user $(id -u):$(id -g) \
@@ -82,6 +83,7 @@ c29r3/solana-snapshot-finder:latest \
 
 TdS  
 ```bash
+docker pull c29r3/solana-snapshot-finder:latest; \
 sudo docker run -it --rm \
 -v ~/solana/validator-ledger:/solana/snapshot \
 --user $(id -u):$(id -g) \
