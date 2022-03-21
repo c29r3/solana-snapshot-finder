@@ -10,11 +10,11 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.1.8")
+print("Version: 0.1.9")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
-parser.add_argument('-t', '--threads-count', default=100, type=int,
+parser.add_argument('-t', '--threads-count', default=3000, type=int,
     help='the number of concurrently running threads that check snapshots for rpc nodes')
 
 parser.add_argument('-r', '--rpc_address',
@@ -25,15 +25,16 @@ parser.add_argument('-r', '--rpc_address',
 parser.add_argument('--max_snapshot_age', default=900, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=25, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_latency', default=65, type=int, help='The maximum value of latency (milliseconds). If latency > max_latency --> skip')
+parser.add_argument('--without_private_rpc', action="store_true", help='Disables adding and checking RPCs with the --private-rpc option.This speeds up checking and searching but potentially reduces the number of RPCs from which snapshots can be downloaded.')
 parser.add_argument('--measurement_time', default=7, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
 args = parser.parse_args()
-print(args.rpc_address)
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
 RPC = args.rpc_address
+WITHOUT_PRIVATE_RPC = args.without_private_rpc
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
 THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
@@ -53,7 +54,8 @@ print(f'{RPC=}\n'
       f'{MIN_DOWNLOAD_SPEED_MB=}\n'
       f'{SNAPSHOT_PATH=}\n'
       f'{THREADS_COUNT=}\n'
-      f'{NUM_OF_MAX_ATTEMPTS=}')
+      f'{NUM_OF_MAX_ATTEMPTS=}\n'
+      f'{WITHOUT_PRIVATE_RPC=}')
 
 try:
     f_ = open(f'{SNAPSHOT_PATH}/write_perm_test', 'w')
@@ -144,7 +146,19 @@ def get_all_rpc_ips():
     d = '{"jsonrpc":"2.0", "id":1, "method":"getClusterNodes"}'
     r = do_request(url_=RPC, method_='post', data_=d)
     if 'result' in str(r.text):
-        rpc_ips = [rpc["rpc"] for rpc in r.json()["result"] if rpc["rpc"] is not None]
+        if WITHOUT_PRIVATE_RPC is False:
+            rpc_ips = []
+            for node in r.json()["result"]:
+                if node["rpc"] is not None:
+                    rpc_ips.append(node["rpc"])
+                else:
+                    gossip_ip = node["gossip"].split(":")[0]
+                    rpc_ips.append(f'{gossip_ip}:8899')
+        
+        else:
+            rpc_ips = [rpc["rpc"] for rpc in r.json()["result"] if rpc["rpc"] is not None]
+        
+        rpc_ips = list(set(rpc_ips))
         return rpc_ips
 
     else:
@@ -155,7 +169,7 @@ def get_snapshot_slot(rpc_address: str):
     pbar.update(1)
     url = f'http://{rpc_address}/snapshot.tar.bz2'
     try:
-        r = do_request(url_=url, method_='head')
+        r = do_request(url_=url, method_='head', timeout_=1)
         if 'location' in str(r.headers) and 'error' not in str(r.text):
             snap_location = r.headers["location"]
             # filtering uncompressed archives
