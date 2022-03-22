@@ -19,7 +19,7 @@ Automatic search and download of snapshots for Solana
 5. Checks the download speed from RPC with the most recent snapshot. If `download_speed <min_download_speed`, then it checks the speed at the next node.  
 6. Download snapshot  
 ```bash
-usage: snapshot-finder.py [-h] [-t THREADS_COUNT] [-r RPC_ADDRESS] [--max_snapshot_age MAX_SNAPSHOT_AGE] [--min_download_speed MIN_DOWNLOAD_SPEED] [--max_latency MAX_LATENCY] [--without_private_rpc] [--measurement_time MEASUREMENT_TIME]
+usage: snapshot-finder.py [-h] [-t THREADS_COUNT] [-r RPC_ADDRESS] [--max_snapshot_age MAX_SNAPSHOT_AGE] [--min_download_speed MIN_DOWNLOAD_SPEED] [--max_latency MAX_LATENCY] [--with_private_rpc] [--measurement_time MEASUREMENT_TIME]
                           [--snapshot_path SNAPSHOT_PATH] [--num_of_retries NUM_OF_RETRIES]
 
 Solana snapshot finder
@@ -36,8 +36,7 @@ optional arguments:
                         Minimum average snapshot download speed in megabytes
   --max_latency MAX_LATENCY
                         The maximum value of latency (milliseconds). If latency > max_latency --> skip
-  --without_private_rpc
-                        Disables adding and checking RPCs with the --private-rpc option.This speeds up checking and searching but potentially reduces the number of RPCs from which snapshots can be downloaded.
+  --with_private_rpc    Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases the number of RPCs from which snapshots can be downloaded.
   --measurement_time MEASUREMENT_TIME
                         Time in seconds during which the script will measure the download speed
   --snapshot_path SNAPSHOT_PATH

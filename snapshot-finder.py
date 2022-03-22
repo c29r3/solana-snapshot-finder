@@ -14,7 +14,7 @@ print("Version: 0.1.9")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
-parser.add_argument('-t', '--threads-count', default=3000, type=int,
+parser.add_argument('-t', '--threads-count', default=1000, type=int,
     help='the number of concurrently running threads that check snapshots for rpc nodes')
 
 parser.add_argument('-r', '--rpc_address',
@@ -25,7 +25,7 @@ parser.add_argument('-r', '--rpc_address',
 parser.add_argument('--max_snapshot_age', default=900, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=25, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_latency', default=65, type=int, help='The maximum value of latency (milliseconds). If latency > max_latency --> skip')
-parser.add_argument('--without_private_rpc', action="store_true", help='Disables adding and checking RPCs with the --private-rpc option.This speeds up checking and searching but potentially reduces the number of RPCs from which snapshots can be downloaded.')
+parser.add_argument('--with_private_rpc', action="store_true", help='Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases the number of RPCs from which snapshots can be downloaded.')
 parser.add_argument('--measurement_time', default=7, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
@@ -34,7 +34,7 @@ args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
 RPC = args.rpc_address
-WITHOUT_PRIVATE_RPC = args.without_private_rpc
+WITH_PRIVATE_RPC = args.with_private_rpc
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
 THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
@@ -55,7 +55,7 @@ print(f'{RPC=}\n'
       f'{SNAPSHOT_PATH=}\n'
       f'{THREADS_COUNT=}\n'
       f'{NUM_OF_MAX_ATTEMPTS=}\n'
-      f'{WITHOUT_PRIVATE_RPC=}')
+      f'{WITH_PRIVATE_RPC=}')
 
 try:
     f_ = open(f'{SNAPSHOT_PATH}/write_perm_test', 'w')
@@ -146,7 +146,7 @@ def get_all_rpc_ips():
     d = '{"jsonrpc":"2.0", "id":1, "method":"getClusterNodes"}'
     r = do_request(url_=RPC, method_='post', data_=d)
     if 'result' in str(r.text):
-        if WITHOUT_PRIVATE_RPC is False:
+        if WITH_PRIVATE_RPC is True:
             rpc_ips = []
             for node in r.json()["result"]:
                 if node["rpc"] is not None:
