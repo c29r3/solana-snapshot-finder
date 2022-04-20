@@ -385,3 +385,6 @@ while NUM_OF_ATTEMPTS <= NUM_OF_MAX_ATTEMPTS:
 
     if NUM_OF_ATTEMPTS >= NUM_OF_MAX_ATTEMPTS:
         sys.exit(f'Could not find a suitable snapshot')
+    
+    print("Sleeping 20 seconds before next try")
+    time.sleep(20)
