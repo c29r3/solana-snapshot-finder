@@ -43,6 +43,7 @@ optional arguments:
                         The location where the snapshot will be downloaded (absolute path). Example: /home/ubuntu/solana/validator-ledger
   --num_of_retries NUM_OF_RETRIES
                         The number of retries if a suitable server for downloading the snapshot was not found
+  --sort_order Priority way to sort the found servers. latency or slots_diff
 ```
 ![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)
 
