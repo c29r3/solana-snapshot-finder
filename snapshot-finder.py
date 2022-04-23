@@ -197,7 +197,7 @@ def get_snapshot_slot(rpc_address: str):
                 json_data["rpc_nodes"].append({
                     "snapshot_address": rpc_address,
                     "full_snap_slot": full_snap_slot_,
-                    "slots_diff_full": slots_diff_full,
+                    "slots_diff": slots_diff_full,
                     "latency": r.elapsed.total_seconds() * 1000,
                     "snapshot_name": r.headers["location"]
                 })
@@ -211,7 +211,7 @@ def get_snapshot_slot(rpc_address: str):
                     json_increment["rpc_nodes"].append({
                         "snapshot_address": rpc_address,
                         "incremental_snap_slot": incremental_snap_slot,
-                        "slots_diff_incremental": slots_diff_inc,
+                        "slots_diff": slots_diff_inc,
                         "latency": r.elapsed.total_seconds() * 1000,
                         "snapshot_name": snap_location_
                     })
