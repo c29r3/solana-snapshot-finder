@@ -11,7 +11,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.2.0")
+print("Version: 0.2.1")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -31,6 +31,7 @@ parser.add_argument('--measurement_time', default=7, type=int, help='Time in sec
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
+parser.add_argument('--sort_order', default='latency', type=str, help='Priority way to sort the found servers. latency or slots_diff')
 args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
@@ -44,7 +45,7 @@ MAX_LATENCY = args.max_latency
 SNAPSHOT_PATH = args.snapshot_path if args.snapshot_path[-1] != '\\' else args.snapshot_path[:-1]
 NUM_OF_MAX_ATTEMPTS = args.num_of_retries
 NUM_OF_ATTEMPTS = 1
-SORT_ORDER = "latency"
+SORT_ORDER = args.sort_order
 
 current_slot = 0
 FULL_LOCAL_SNAPSHOTS = []
@@ -57,7 +58,8 @@ print(f'{RPC=}\n'
       f'{SNAPSHOT_PATH=}\n'
       f'{THREADS_COUNT=}\n'
       f'{NUM_OF_MAX_ATTEMPTS=}\n'
-      f'{WITH_PRIVATE_RPC=}')
+      f'{WITH_PRIVATE_RPC=}\n'
+      f'{SORT_ORDER=}')
 
 try:
     f_ = open(f'{SNAPSHOT_PATH}/write_perm_test', 'w')
@@ -286,8 +288,6 @@ def main_worker():
         rpc_nodes_inc_sorted = []
         if len(json_increment["rpc_nodes"]) != 0:
             print("TRYING TO DOWNLOAD INCREMENTAL SNAPSHOT")
-            from pprint import pprint
-            pprint(json_increment)
             rpc_nodes_inc_sorted = sorted(json_increment["rpc_nodes"], key=lambda k: k[SORT_ORDER])
 
             json_increment.update({
