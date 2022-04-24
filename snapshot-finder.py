@@ -11,7 +11,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.2.1")
+print("Version: 0.2.2")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -31,6 +31,7 @@ parser.add_argument('--measurement_time', default=7, type=int, help='Time in sec
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
+parser.add_argument('--sleep', default=20, type=int, help='Sleep before next retry (seconds)')
 parser.add_argument('--sort_order', default='latency', type=str, help='Priority way to sort the found servers. latency or slots_diff')
 args = parser.parse_args()
 
@@ -44,6 +45,7 @@ SPEED_MEASURE_TIME_SEC = args.measurement_time
 MAX_LATENCY = args.max_latency
 SNAPSHOT_PATH = args.snapshot_path if args.snapshot_path[-1] != '\\' else args.snapshot_path[:-1]
 NUM_OF_MAX_ATTEMPTS = args.num_of_retries
+SLEEP_BEFORE_RETRY = args.sleep
 NUM_OF_ATTEMPTS = 1
 SORT_ORDER = args.sort_order
 
@@ -386,5 +388,5 @@ while NUM_OF_ATTEMPTS <= NUM_OF_MAX_ATTEMPTS:
     if NUM_OF_ATTEMPTS >= NUM_OF_MAX_ATTEMPTS:
         sys.exit(f'Could not find a suitable snapshot')
     
-    print("Sleeping 20 seconds before next try")
-    time.sleep(20)
+    print(f"Sleeping {SLEEP_BEFORE_RETRY} seconds before next try")
+    time.sleep(SLEEP_BEFORE_RETRY)
