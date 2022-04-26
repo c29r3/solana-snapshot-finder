@@ -148,11 +148,15 @@ def do_request(url_: str, method_: str = 'GET', data_: str = '', timeout_: int =
 def get_current_slot():
     print("get_current_slot()")
     d = '{"jsonrpc":"2.0","id":1, "method":"getSlot"}'
-    r = do_request(url_=RPC, method_='post', data_=d)
-    if 'result' in str(r.text):
-        return r.json()["result"]
-    else:
-        print(f'Can\'t get current slot {r.text}')
+    try:
+        r = do_request(url_=RPC, method_='post', data_=d)
+        if 'result' in str(r.text):
+            return r.json()["result"]
+        else:
+            print(f'Can\'t get current slot')
+            exit(1)
+    except:
+        print(f'Can\'t get current slot')
         exit(1)
 
 
