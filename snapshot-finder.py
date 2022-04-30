@@ -48,6 +48,10 @@ NUM_OF_MAX_ATTEMPTS = args.num_of_retries
 SLEEP_BEFORE_RETRY = args.sleep
 NUM_OF_ATTEMPTS = 1
 SORT_ORDER = args.sort_order
+AVERAGE_SNAPSHOT_FILE_SIZE_MB = 2500.0
+AVERAGE_INCREMENT_FILE_SIZE_MB = 200.0
+AVERAGE_CATCHUP_SPEED = 2.0
+FULL_LOCAL_SNAP_SLOT = 0
 
 current_slot = 0
 FULL_LOCAL_SNAPSHOTS = []
@@ -72,13 +76,6 @@ except IOError:
     sys.exit(f'{os.system("ls -l")}')
 
 json_data = ({"last_update_at": 0.0,
-              "last_update_slot": 0,
-              "total_rpc_nodes": 0,
-              "rpc_nodes_with_actual_snapshot": 0,
-              "rpc_nodes": []
-              })
-
-json_increment = ({"last_update_at": 0.0,
               "last_update_slot": 0,
               "total_rpc_nodes": 0,
               "rpc_nodes_with_actual_snapshot": 0,
@@ -149,7 +146,7 @@ def get_current_slot():
     print("get_current_slot()")
     d = '{"jsonrpc":"2.0","id":1, "method":"getSlot"}'
     try:
-        r = do_request(url_=RPC, method_='post', data_=d)
+        r = do_request(url_=RPC, method_='post', data_=d, timeout_=25)
         if 'result' in str(r.text):
             return r.json()["result"]
         else:
@@ -162,7 +159,7 @@ def get_current_slot():
 
 def get_all_rpc_ips():
     d = '{"jsonrpc":"2.0", "id":1, "method":"getClusterNodes"}'
-    r = do_request(url_=RPC, method_='post', data_=d)
+    r = do_request(url_=RPC, method_='post', data_=d, timeout_=25)
     if 'result' in str(r.text):
         if WITH_PRIVATE_RPC is True:
             rpc_ips = []
@@ -184,43 +181,66 @@ def get_all_rpc_ips():
 
 
 def get_snapshot_slot(rpc_address: str):
+    global FULL_LOCAL_SNAP_SLOT
     pbar.update(1)
     url = f'http://{rpc_address}/snapshot.tar.bz2'
     inc_url = f'http://{rpc_address}/incremental-snapshot.tar.bz2'
     # d = '{"jsonrpc":"2.0","id":1,"method":"getHighestSnapshotSlot"}'
-    incremental_snap_slot = 0
     try:
+        r = do_request(url_=inc_url, method_='head', timeout_=1)
+        if 'location' in str(r.headers) and 'error' not in str(r.text) and r.elapsed.total_seconds() * 1000 > MAX_LATENCY:
+            return None
+
+        if 'location' in str(r.headers) and 'error' not in str(r.text):
+            snap_location_ = r.headers["location"]
+            if snap_location_.endswith('tar') is True:
+                return None
+            incremental_snap_slot = int(snap_location_.split("-")[2])
+            snap_slot_ = int(snap_location_.split("-")[3])
+            slots_diff = current_slot - snap_slot_
+
+            if slots_diff > MAX_SNAPSHOT_AGE_IN_SLOTS:
+                return
+
+            if FULL_LOCAL_SNAP_SLOT == incremental_snap_slot:
+                json_data["rpc_nodes"].append({
+                    "snapshot_address": rpc_address,
+                    "slots_diff": slots_diff,
+                    "latency": r.elapsed.total_seconds() * 1000,
+                    "files_to_download": [snap_location_],
+                    "cost": AVERAGE_INCREMENT_FILE_SIZE_MB / MIN_DOWNLOAD_SPEED_MB + slots_diff / AVERAGE_CATCHUP_SPEED
+                })
+                return
+
+            r2 = do_request(url_=url, method_='head', timeout_=1)
+            if 'location' in str(r.headers) and 'error' not in str(r.text):
+                json_data["rpc_nodes"].append({
+                    "snapshot_address": rpc_address,
+                    "slots_diff": slots_diff,
+                    "latency": r.elapsed.total_seconds() * 1000,
+                    "files_to_download": [r.headers["location"], r2.headers['location']],
+                    "cost": (AVERAGE_SNAPSHOT_FILE_SIZE_MB + AVERAGE_INCREMENT_FILE_SIZE_MB) / MIN_DOWNLOAD_SPEED_MB + slots_diff / AVERAGE_CATCHUP_SPEED
+                })
+                return
+
         r = do_request(url_=url, method_='head', timeout_=1)
         if 'location' in str(r.headers) and 'error' not in str(r.text):
-            snap_location = r.headers["location"]
+            snap_location_ = r.headers["location"]
             # filtering uncompressed archives
-            if snap_location.endswith('tar') is True:
+            if snap_location_.endswith('tar') is True:
                 return None
-            full_snap_slot_ = int(snap_location.split("-")[1])
+            full_snap_slot_ = int(snap_location_.split("-")[1])
             slots_diff_full = current_slot - full_snap_slot_
             if slots_diff_full <= MAX_SNAPSHOT_AGE_IN_SLOTS and r.elapsed.total_seconds() * 1000 <= MAX_LATENCY:
                 # print(f'{rpc_address=} | {slots_diff=}')
                 json_data["rpc_nodes"].append({
                     "snapshot_address": rpc_address,
-                    "full_snap_slot": full_snap_slot_,
                     "slots_diff": slots_diff_full,
                     "latency": r.elapsed.total_seconds() * 1000,
-                    "snapshot_name": r.headers["location"]
+                    "files_to_download": [snap_location_],
+                    "cost": AVERAGE_SNAPSHOT_FILE_SIZE_MB / MIN_DOWNLOAD_SPEED_MB + slots_diff_full / AVERAGE_CATCHUP_SPEED
                 })
-            r_ = do_request(url_=inc_url, method_='head', timeout_=1)
-            if 'location' in str(r_.headers) and 'error' not in str(r_.text):
-                snap_location_ = r_.headers["location"]
-                incremental_snap_slot = int(snap_location_.split("-")[2])
-
-                if FULL_LOCAL_SNAP_SLOT == incremental_snap_slot and r.elapsed.total_seconds() * 1000 <= MAX_LATENCY:
-                    slots_diff_inc = current_slot - incremental_snap_slot
-                    json_increment["rpc_nodes"].append({
-                        "snapshot_address": rpc_address,
-                        "incremental_snap_slot": incremental_snap_slot,
-                        "slots_diff": slots_diff_inc,
-                        "latency": r.elapsed.total_seconds() * 1000,
-                        "snapshot_name": snap_location_
-                    })
+                return
         return None
 
     except Exception as getSnapErr:
@@ -229,8 +249,8 @@ def get_snapshot_slot(rpc_address: str):
 
 
 def download(url: str):
-    r = do_request(url_=url, method_='head', timeout_=1)
-    fname = f'{SNAPSHOT_PATH}{r.headers["location"]}'
+    actual_name = url[url.rfind('/'):]
+    fname = f'{SNAPSHOT_PATH}{actual_name}'
     resp = requests.get(url, stream=True)
     total = int(resp.headers.get('content-length', 0))
     with open(fname, 'wb') as file, tqdm(
@@ -292,51 +312,7 @@ def main_worker():
         num_of_rpc_to_check = 15
 
         rpc_nodes_inc_sorted = []
-        if len(json_increment["rpc_nodes"]) != 0:
-            print("TRYING TO DOWNLOAD INCREMENTAL SNAPSHOT")
-            rpc_nodes_inc_sorted = sorted(json_increment["rpc_nodes"], key=lambda k: k[SORT_ORDER])
-
-            json_increment.update({
-            "last_update_at": time.time(),
-            "last_update_slot": current_slot,
-            "total_rpc_nodes": len(rpc_nodes),
-            "rpc_nodes_with_actual_snapshot": len(json_increment["rpc_nodes"]),
-            "rpc_nodes": rpc_nodes_inc_sorted
-            })
-
-            with open(f'{SNAPSHOT_PATH}/snapshot_incremental.json', "w") as result_f:
-                json.dump(json_increment, result_f, indent=2)
-
-            for i, rpc_node in enumerate(json_increment["rpc_nodes"], start=1):
-                print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
-                if rpc_node["snapshot_address"] in unsuitable_servers:
-                    print(f'Rpc node already in unsuitable list --> skip {rpc_node["snapshot_address"]}')
-                    continue
-
-                down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
-                down_speed_mb = convert_size(down_speed_bytes)
-                if down_speed_bytes < MIN_DOWNLOAD_SPEED_MB * 1e6:
-                    print(f'Too slow: {rpc_node=} {down_speed_mb=}')
-                    unsuitable_servers.add(rpc_node["snapshot_address"])
-                    continue
-
-                elif down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
-                    print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
-                    best_snapshot_node = f'http://{rpc_node["snapshot_address"]}/incremental-snapshot.tar.bz2'
-                    print(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
-                    download(url=best_snapshot_node)
-                    return 0
-
-                elif i > num_of_rpc_to_check:
-                    print(f'The limit on the number of RPC nodes from'
-                    ' which we measure the speed has been reached {num_of_rpc_to_check=}\n')
-                    break
-
-                else:
-                    print(f'{down_speed_mb=} < {MIN_DOWNLOAD_SPEED_MB=}')
-
-
-        print("TRYING TO DOWNLOAD FULL SNAPSHOT")
+        print("TRYING TO DOWNLOADING FILES")
         for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
             print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
             if rpc_node["snapshot_address"] in unsuitable_servers:
@@ -352,9 +328,10 @@ def main_worker():
 
             elif down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
                 print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
-                best_snapshot_node = f'http://{rpc_node["snapshot_address"]}/snapshot.tar.bz2'
-                print(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
-                download(url=best_snapshot_node)
+                for path in rpc_node["files_to_download"]:
+                    best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
+                    print(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
+                    download(url=best_snapshot_node)
                 return 0
 
             elif i > num_of_rpc_to_check:
