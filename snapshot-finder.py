@@ -11,7 +11,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.2.2")
+print("Version: 0.2.3")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -23,15 +23,15 @@ parser.add_argument('-r', '--rpc_address',
     help='RPC address of the node from which the current slot number will be taken\n'
          'https://api.mainnet-beta.solana.com')
 
-parser.add_argument('--max_snapshot_age', default=900, type=int, help='How many slots ago the snapshot was created (in slots)')
-parser.add_argument('--min_download_speed', default=25, type=int, help='Minimum average snapshot download speed in megabytes')
+parser.add_argument('--max_snapshot_age', default=1300, type=int, help='How many slots ago the snapshot was created (in slots)')
+parser.add_argument('--min_download_speed', default=60, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_latency', default=70, type=int, help='The maximum value of latency (milliseconds). If latency > max_latency --> skip')
 parser.add_argument('--with_private_rpc', action="store_true", help='Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases the number of RPCs from which snapshots can be downloaded.')
 parser.add_argument('--measurement_time', default=7, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
-parser.add_argument('--sleep', default=20, type=int, help='Sleep before next retry (seconds)')
+parser.add_argument('--sleep', default=30, type=int, help='Sleep before next retry (seconds)')
 parser.add_argument('--sort_order', default='latency', type=str, help='Priority way to sort the found servers. latency or slots_diff')
 args = parser.parse_args()
 
