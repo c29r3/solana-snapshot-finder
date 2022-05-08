@@ -154,10 +154,10 @@ def get_current_slot():
             return r.json()["result"]
         else:
             print(f'Can\'t get current slot')
-            exit(1)
+            return None
     except:
         print(f'Can\'t get current slot')
-        exit(1)
+        return None
 
 
 def get_all_rpc_ips():
@@ -383,6 +383,10 @@ while NUM_OF_ATTEMPTS <= NUM_OF_MAX_ATTEMPTS:
     current_slot = get_current_slot()
     print(f'Attempt number: {NUM_OF_ATTEMPTS}. Total attempts: {NUM_OF_MAX_ATTEMPTS}')
     NUM_OF_ATTEMPTS += 1
+
+    if current_slot is None:
+        continue
+
     worker_result = main_worker()
 
     if worker_result == 0:
