@@ -32,7 +32,7 @@ parser.add_argument('--snapshot_path', type=str, default=".", help='The location
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
 parser.add_argument('--sleep', default=30, type=int, help='Sleep before next retry (seconds)')
-parser.add_argument('--sort_order', default='latency', type=str, help='Priority way to sort the found servers. latency or slots_diff')
+parser.add_argument('--sort_order', default='cost', type=str, help='Priority way to sort the found servers. latency or slots_diff or cost')
 args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
