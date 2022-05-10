@@ -11,7 +11,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.2.3")
+print("Version: 0.2.4")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -328,7 +328,7 @@ def main_worker():
 
             elif down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
                 print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
-                for path in rpc_node["files_to_download"]:
+                for path in reversed(rpc_node["files_to_download"]):
                     best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
                     print(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
                     download(url=best_snapshot_node)
