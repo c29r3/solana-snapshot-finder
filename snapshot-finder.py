@@ -277,7 +277,7 @@ def main_worker():
         # If such a snapshot is found and it is not too old, then the script will try to find and download an incremental snapshot
         FULL_LOCAL_SNAPSHOTS = glob.glob(f'{SNAPSHOT_PATH}/snapshot-*tar*')
         if len(FULL_LOCAL_SNAPSHOTS) > 0:
-            FULL_LOCAL_SNAPSHOTS.sort(reverse=False)
+            FULL_LOCAL_SNAPSHOTS.sort(reverse=True)
             FULL_LOCAL_SNAP_SLOT = FULL_LOCAL_SNAPSHOTS[0].replace(SNAPSHOT_PATH, "").split("-")[1]
             print(f'Found full local snapshot {FULL_LOCAL_SNAPSHOTS[0]} | {FULL_LOCAL_SNAP_SLOT=}')
 
