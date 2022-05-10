@@ -329,6 +329,12 @@ def main_worker():
             elif down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
                 print(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
                 for path in reversed(rpc_node["files_to_download"]):
+                    # do not download full snapshot if it already exists locally
+                    if str(path).startswith("/snapshot-"):
+                        full_snap_slot__ = path.split("-")[1]
+                        if full_snap_slot__ == FULL_LOCAL_SNAP_SLOT:
+                            continue
+
                     best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
                     print(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
                     download(url=best_snapshot_node)
