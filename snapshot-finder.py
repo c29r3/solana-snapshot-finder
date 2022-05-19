@@ -199,7 +199,7 @@ def get_snapshot_slot(rpc_address: str):
             snap_slot_ = int(snap_location_.split("-")[3])
             slots_diff = current_slot - snap_slot_
 
-            if slots_diff < 0:
+            if slots_diff < -100:
                 print(f'Something wrong with this snapshot\\rpc_node - {slots_diff=}. This node will be skipped {rpc_address=}')
                 return
 
