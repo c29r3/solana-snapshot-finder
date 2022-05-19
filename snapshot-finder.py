@@ -11,7 +11,7 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.2.4")
+print("Version: 0.2.5")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -198,6 +198,10 @@ def get_snapshot_slot(rpc_address: str):
             incremental_snap_slot = int(snap_location_.split("-")[2])
             snap_slot_ = int(snap_location_.split("-")[3])
             slots_diff = current_slot - snap_slot_
+
+            if slots_diff < 0:
+                print(f'Something wrong with this snapshot\\rpc_node - {slots_diff=}. This node will be skipped {rpc_address=}')
+                return
 
             if slots_diff > MAX_SNAPSHOT_AGE_IN_SLOTS:
                 return
