@@ -254,7 +254,7 @@ def get_snapshot_slot(rpc_address: str):
 
 def download(url: str, fname_: str):
     #actual_name = url[url.rfind('/'):]
-    temp_fname = f'{SNAPSHOT_PATH}/tmpblia-{fname_}'
+    temp_fname = f'{SNAPSHOT_PATH}/tmpblet-{fname_}'
     fname = f'{SNAPSHOT_PATH}/{fname_}'
     try:
         resp = requests.get(url, stream=True)
