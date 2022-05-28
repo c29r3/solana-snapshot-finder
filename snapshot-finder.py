@@ -11,7 +11,8 @@ from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
-print("Version: 0.2.6")
+
+print("Version: 0.2.7")
 print("https://github.com/c29r3/solana-snapshot-finder\n\n")
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
@@ -26,13 +27,17 @@ parser.add_argument('-r', '--rpc_address',
 parser.add_argument('--max_snapshot_age', default=1300, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=60, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_latency', default=40, type=int, help='The maximum value of latency (milliseconds). If latency > max_latency --> skip')
-parser.add_argument('--with_private_rpc', action="store_true", help='Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases the number of RPCs from which snapshots can be downloaded.')
+parser.add_argument('--with_private_rpc', action="store_true", help='Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases'
+                    ' the number of RPCs from which snapshots can be downloaded.')
 parser.add_argument('--measurement_time', default=7, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
 parser.add_argument('--sleep', default=30, type=int, help='Sleep before next retry (seconds)')
 parser.add_argument('--sort_order', default='slots_diff', type=str, help='Priority way to sort the found servers. latency or slots_diff')
+parser.add_argument('-b', '--blacklist', default='', type=str, help='If the same corrupted archive is constantly downloaded, you can exclude it.'
+                    ' Specify either the number of the slot you want to exclude, or the hash of the archive name. '
+                    'You can specify several, separated by commas. Example: -b 135501350,135501360 or --blacklist 135501350,some_hash')
 args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
@@ -48,6 +53,7 @@ NUM_OF_MAX_ATTEMPTS = args.num_of_retries
 SLEEP_BEFORE_RETRY = args.sleep
 NUM_OF_ATTEMPTS = 1
 SORT_ORDER = args.sort_order
+BLACKLIST = str(args.blacklist).split(",")
 AVERAGE_SNAPSHOT_FILE_SIZE_MB = 2500.0
 AVERAGE_INCREMENT_FILE_SIZE_MB = 200.0
 AVERAGE_CATCHUP_SPEED = 2.0
@@ -329,6 +335,12 @@ def main_worker():
         rpc_nodes_inc_sorted = []
         print("TRYING TO DOWNLOADING FILES")
         for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
+            # filter blacklisted snapshots
+            if BLACKLIST != ['']:
+                if any(i in str(rpc_node["files_to_download"]) for i in BLACKLIST):
+                    print(f'{i}\\{len(json_data["rpc_nodes"])} BLACKLISTED --> {rpc_node}')
+                    continue
+
             print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
             if rpc_node["snapshot_address"] in unsuitable_servers:
                 print(f'Rpc node already in unsuitable list --> skip {rpc_node["snapshot_address"]}')
