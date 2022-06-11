@@ -27,8 +27,6 @@ parser.add_argument('-r', '--rpc_address',
 parser.add_argument('--max_snapshot_age', default=1300, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=60, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_latency', default=40, type=int, help='The maximum value of latency (milliseconds). If latency > max_latency --> skip')
-parser.add_argument('--with_private_rpc', action="store_true", help='Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases'
-                    ' the number of RPCs from which snapshots can be downloaded.')
 parser.add_argument('--measurement_time', default=7, type=int, help='Time in seconds during which the script will measure the download speed')
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
@@ -42,7 +40,6 @@ args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
 RPC = args.rpc_address
-WITH_PRIVATE_RPC = args.with_private_rpc
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
 THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
@@ -70,8 +67,8 @@ print(f'{RPC=}\n'
       f'{SNAPSHOT_PATH=}\n'
       f'{THREADS_COUNT=}\n'
       f'{NUM_OF_MAX_ATTEMPTS=}\n'
-      f'{WITH_PRIVATE_RPC=}\n'
-      f'{SORT_ORDER=}')
+      f'{SORT_ORDER=}\n'
+      f'{BLACKLIST=}')
 
 try:
     f_ = open(f'{SNAPSHOT_PATH}/write_perm_test', 'w')
@@ -167,18 +164,7 @@ def get_all_rpc_ips():
     d = '{"jsonrpc":"2.0", "id":1, "method":"getClusterNodes"}'
     r = do_request(url_=RPC, method_='post', data_=d, timeout_=25)
     if 'result' in str(r.text):
-        if WITH_PRIVATE_RPC is True:
-            rpc_ips = []
-            for node in r.json()["result"]:
-                if node["rpc"] is not None:
-                    rpc_ips.append(node["rpc"])
-                else:
-                    gossip_ip = node["gossip"].split(":")[0]
-                    rpc_ips.append(f'{gossip_ip}:8899')
-
-        else:
-            rpc_ips = [rpc["rpc"] for rpc in r.json()["result"] if rpc["rpc"] is not None]
-
+        rpc_ips = [rpc["rpc"] for rpc in r.json()["result"] if rpc["rpc"] is not None]
         rpc_ips = list(set(rpc_ips))
         return rpc_ips
 
@@ -338,7 +324,7 @@ def main_worker():
             # filter blacklisted snapshots
             if BLACKLIST != ['']:
                 if any(i in str(rpc_node["files_to_download"]) for i in BLACKLIST):
-                    print(f'{i}\\{len(json_data["rpc_nodes"])} BLACKLISTED --> {rpc_node}')
+                    print(f'{i}\\{len(json_data["rpc_nodes"])} excluded via --blacklist')
                     continue
 
             print(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
