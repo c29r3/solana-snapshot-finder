@@ -39,8 +39,6 @@ optional arguments:
                         Minimum average snapshot download speed in megabytes
   --max_latency MAX_LATENCY
                         The maximum value of latency (milliseconds). If latency > max_latency --> skip
-  --with_private_rpc    Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching
-                        but potentially increases the number of RPCs from which snapshots can be downloaded.
   --measurement_time MEASUREMENT_TIME
                         Time in seconds during which the script will measure the download speed
   --snapshot_path SNAPSHOT_PATH
