@@ -257,10 +257,9 @@ def get_snapshot_slot(rpc_address: str):
         return None
 
 
-def download(url: str, fname_: str):
-    #actual_name = url[url.rfind('/'):]
-    temp_fname = f'{SNAPSHOT_PATH}/tmp-{fname_}'
-    fname = f'{SNAPSHOT_PATH}/{fname_}'
+def download(url: str):
+    fname = url[url.rfind('/'):].replace("/", "")
+    temp_fname = f'{SNAPSHOT_PATH}/tmp-{fname}'
     try:
         resp = requests.get(url, stream=True)
         total = int(resp.headers.get('content-length', 0))
@@ -360,14 +359,10 @@ def main_worker():
                         full_snap_slot__ = path.split("-")[1]
                         if full_snap_slot__ == FULL_LOCAL_SNAP_SLOT:
                             continue
-                    if 'incremental' in path:
-                        best_snapshot_node = f'http://{rpc_node["snapshot_address"]}/incremental-snapshot.tar.bz2'
-
-                    else:
-                        best_snapshot_node = f'http://{rpc_node["snapshot_address"]}/snapshot.tar.bz2'
+                    best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
 
                     logger.info(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
-                    download(url=best_snapshot_node, fname_=path.replace("/", ""))
+                    download(url=best_snapshot_node)
                 return 0
 
             elif i > num_of_rpc_to_check:
@@ -392,7 +387,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.2.8")
+logger.info("Version: 0.2.9")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
