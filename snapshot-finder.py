@@ -275,7 +275,7 @@ def download(url: str):
                 bar.update(size)
 
         logger.info(f'Rename the downloaded file {temp_fname} --> {fname}')
-        os.rename(temp_fname, fname)
+        os.rename(temp_fname, f'{SNAPSHOT_PATH}/{fname}')
 
     except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as downlErr:
         logger.error(f'Exception in download() func\n {downlErr}')
@@ -359,9 +359,17 @@ def main_worker():
                         full_snap_slot__ = path.split("-")[1]
                         if full_snap_slot__ == FULL_LOCAL_SNAP_SLOT:
                             continue
-                    best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
 
                     logger.info(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
+                    if 'incremental' in path:
+                        r = do_request(f'http://{rpc_node["snapshot_address"]}/incremental-snapshot.tar.bz2', method_='head', timeout_=2)
+                        if 'location' in str(r.headers) and 'error' not in str(r.text):
+                            best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{r.headers["location"]}'
+                        else:
+                            best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
+
+                    else:
+                        best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
                     download(url=best_snapshot_node)
                 return 0
 
@@ -387,7 +395,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.2.9")
+logger.info("Version: 0.3.0")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
