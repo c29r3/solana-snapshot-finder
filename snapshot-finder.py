@@ -360,7 +360,7 @@ def main_worker():
                         if full_snap_slot__ == FULL_LOCAL_SNAP_SLOT:
                             continue
 
-                    logger.info(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
+                    
                     if 'incremental' in path:
                         r = do_request(f'http://{rpc_node["snapshot_address"]}/incremental-snapshot.tar.bz2', method_='head', timeout_=2)
                         if 'location' in str(r.headers) and 'error' not in str(r.text):
@@ -370,6 +370,7 @@ def main_worker():
 
                     else:
                         best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
+                    logger.info(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
                     download(url=best_snapshot_node)
                 return 0
 
