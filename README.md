@@ -19,8 +19,8 @@ Automatic search and download of snapshots for Solana
 5. Checks the download speed from RPC with the most recent snapshot. If `download_speed <min_download_speed`, then it checks the speed at the next node.  
 6. Download snapshot  
 ```bash
-usage: snapshot-finder.py [-h] [-t THREADS_COUNT] [-r RPC_ADDRESS] [--max_snapshot_age MAX_SNAPSHOT_AGE] [--min_download_speed MIN_DOWNLOAD_SPEED] [--max_latency MAX_LATENCY] [--with_private_rpc] [--measurement_time MEASUREMENT_TIME]
-                          [--snapshot_path SNAPSHOT_PATH] [--num_of_retries NUM_OF_RETRIES] [--sleep SLEEP] [--sort_order SORT_ORDER] [-b BLACKLIST] [-v]
+usage: snapshot-finder.py [-h] [-t THREADS_COUNT] [-r RPC_ADDRESS] [--max_snapshot_age MAX_SNAPSHOT_AGE] [--min_download_speed MIN_DOWNLOAD_SPEED] [--max_download_speed MAX_DOWNLOAD_SPEED] [--max_latency MAX_LATENCY] [--with_private_rpc]
+                          [--measurement_time MEASUREMENT_TIME] [--snapshot_path SNAPSHOT_PATH] [--num_of_retries NUM_OF_RETRIES] [--sleep SLEEP] [--sort_order SORT_ORDER] [-b BLACKLIST] [-v]
 
 Solana snapshot finder
 
@@ -34,6 +34,8 @@ optional arguments:
                         How many slots ago the snapshot was created (in slots)
   --min_download_speed MIN_DOWNLOAD_SPEED
                         Minimum average snapshot download speed in megabytes
+  --max_download_speed MAX_DOWNLOAD_SPEED
+                        Maximum snapshot download speed in megabytes - https://github.com/c29r3/solana-snapshot-finder/issues/11. Example: --max_download_speed 192
   --max_latency MAX_LATENCY
                         The maximum value of latency (milliseconds). If latency > max_latency --> skip
   --with_private_rpc    Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases the number of RPCs from which snapshots can be downloaded.
@@ -47,8 +49,8 @@ optional arguments:
   --sort_order SORT_ORDER
                         Priority way to sort the found servers. latency or slots_diff
   -b BLACKLIST, --blacklist BLACKLIST
-                        If the same corrupted archive is constantly downloaded, you can exclude it. Specify either the number of the slot you want to exclude, or the hash of the archive name. You can specify several, separated by commas. Example:
-                        -b 135501350,135501360 or --blacklist 135501350,some_hash
+                        If the same corrupted archive is constantly downloaded, you can exclude it. Specify either the number of the slot you want to exclude, or the hash of the archive name. You can specify several, separated by commas. Example: -b
+                        135501350,135501360 or --blacklist 135501350,some_hash
   -v, --verbose         increase output verbosity to DEBUG
 ```
 ![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)

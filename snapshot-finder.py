@@ -7,7 +7,8 @@ import json
 import sys
 import argparse
 import logging
-import datetime
+import subprocess
+from pathlib import Path
 from requests import ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
@@ -23,6 +24,8 @@ parser.add_argument('-r', '--rpc_address',
 
 parser.add_argument('--max_snapshot_age', default=1300, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=60, type=int, help='Minimum average snapshot download speed in megabytes')
+parser.add_argument('--max_download_speed', type=int, 
+help='Maximum snapshot download speed in megabytes - https://github.com/c29r3/solana-snapshot-finder/issues/11. Example: --max_download_speed 192')
 parser.add_argument('--max_latency', default=40, type=int, help='The maximum value of latency (milliseconds). If latency > max_latency --> skip')
 parser.add_argument('--with_private_rpc', action="store_true", help='Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases'
                     ' the number of RPCs from which snapshots can be downloaded.')
@@ -44,6 +47,7 @@ WITH_PRIVATE_RPC = args.with_private_rpc
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
 THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
+MAX_DOWNLOAD_SPEED_MB = args.max_download_speed
 SPEED_MEASURE_TIME_SEC = args.measurement_time
 MAX_LATENCY = args.max_latency
 SNAPSHOT_PATH = args.snapshot_path if args.snapshot_path[-1] != '/' else args.snapshot_path[:-1]
@@ -260,28 +264,42 @@ def get_snapshot_slot(rpc_address: str):
 def download(url: str):
     fname = url[url.rfind('/'):].replace("/", "")
     temp_fname = f'{SNAPSHOT_PATH}/tmp-{fname}'
+    # try:
+    #     resp = requests.get(url, stream=True)
+    #     total = int(resp.headers.get('content-length', 0))
+    #     with open(temp_fname, 'wb') as file, tqdm(
+    #         desc=fname,
+    #         total=total,
+    #         unit='iB',
+    #         unit_scale=True,
+    #         unit_divisor=1024,
+    #     ) as bar:
+    #         for data in resp.iter_content(chunk_size=1024):
+    #             size = file.write(data)
+    #             bar.update(size)
+
+    #     logger.info(f'Rename the downloaded file {temp_fname} --> {fname}')
+    #     os.rename(temp_fname, f'{SNAPSHOT_PATH}/{fname}')
+
+    # except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as downlErr:
+    #     logger.error(f'Exception in download() func\n {downlErr}')
+
     try:
-        resp = requests.get(url, stream=True)
-        total = int(resp.headers.get('content-length', 0))
-        with open(temp_fname, 'wb') as file, tqdm(
-            desc=fname,
-            total=total,
-            unit='iB',
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as bar:
-            for data in resp.iter_content(chunk_size=1024):
-                size = file.write(data)
-                bar.update(size)
+        # dirty trick with wget. Details here - https://github.com/c29r3/solana-snapshot-finder/issues/11
+        if MAX_DOWNLOAD_SPEED_MB is not None:
+            process = subprocess.run(['/usr/bin/wget', f'--limit-rate={MAX_DOWNLOAD_SPEED_MB}M', '--trust-server-names', url, f'-O{temp_fname}'], 
+              stdout=subprocess.PIPE,
+              universal_newlines=True)
+        else:
+            process = subprocess.run(['/usr/bin/wget', '--trust-server-names', url, f'-O{temp_fname}'], 
+              stdout=subprocess.PIPE,
+              universal_newlines=True)
 
         logger.info(f'Rename the downloaded file {temp_fname} --> {fname}')
         os.rename(temp_fname, f'{SNAPSHOT_PATH}/{fname}')
-
-    except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as downlErr:
-        logger.error(f'Exception in download() func\n {downlErr}')
     
     except Exception as unknwErr:
-        logger.error(f'Exception in download() func\n{unknwErr}')
+        logger.error(f'Exception in download() func. Make sure wget is installed\n{unknwErr}')
 
 
 def main_worker():
@@ -396,11 +414,12 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.0")
+logger.info("Version: 0.3.1")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
       f'{MIN_DOWNLOAD_SPEED_MB=}\n'
+      f'{MAX_DOWNLOAD_SPEED_MB=}\n'
       f'{SNAPSHOT_PATH=}\n'
       f'{THREADS_COUNT=}\n'
       f'{NUM_OF_MAX_ATTEMPTS=}\n'
@@ -413,7 +432,7 @@ try:
     os.remove(f'{SNAPSHOT_PATH}/write_perm_test')
 except IOError:
     logger.error(f'\nCheck {SNAPSHOT_PATH=} and permissions')
-    sys.exit(f'{os.system("ls -l")}')
+    Path(SNAPSHOT_PATH).mkdir(parents=True, exist_ok=True)
 
 json_data = ({"last_update_at": 0.0,
               "last_update_slot": 0,
