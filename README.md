@@ -35,7 +35,7 @@ optional arguments:
   --min_download_speed MIN_DOWNLOAD_SPEED
                         Minimum average snapshot download speed in megabytes
   --max_download_speed MAX_DOWNLOAD_SPEED
-                        Maximum snapshot download speed in megabytes - https://github.com/c29r3/solana-snapshot-finder/issues/11. Example: --max_download_speed 192
+                        Maximum snapshot download speed in megabytes - https://github.com/c29r3/solana-snapshot-finder/issues/11. Example: --max_download_speed 120
   --max_latency MAX_LATENCY
                         The maximum value of latency (milliseconds). If latency > max_latency --> skip
   --with_private_rpc    Enable adding and checking RPCs with the --private-rpc option.This slow down checking and searching but potentially increases the number of RPCs from which snapshots can be downloaded.
