@@ -1,3 +1,4 @@
+from distutils.log import debug
 import os
 import glob
 import requests
@@ -62,6 +63,11 @@ AVERAGE_CATCHUP_SPEED = 2.0
 FULL_LOCAL_SNAP_SLOT = 0
 
 current_slot = 0
+DISCARDED_BY_ARCHIVE_TYPE = 0
+DISCARDED_BY_LATENCY = 0
+DISCARDED_BY_SLOT = 0
+DISCARDED_BY_UNKNW_ERR = 0
+DISCARDED_BY_TIMEOUT = 0
 FULL_LOCAL_SNAPSHOTS = []
 # skip servers that do not fit the filters so as not to check them again
 unsuitable_servers = set()
@@ -131,6 +137,8 @@ def measure_speed(url: str, measure_time: int) -> float:
 
 def do_request(url_: str, method_: str = 'GET', data_: str = '', timeout_: int = 3,
                headers_: dict = None):
+    global DISCARDED_BY_UNKNW_ERR
+    global DISCARDED_BY_TIMEOUT
     r = ''
     if headers_ is None:
         headers_ = DEFAULT_HEADERS
@@ -145,8 +153,14 @@ def do_request(url_: str, method_: str = 'GET', data_: str = '', timeout_: int =
         # print(f'{r.content, r.status_code, r.text}')
         return r
 
-    except (RequestException, Timeout, Exception) as reqErr:
-        # print(f'error in do_request(): {reqErr}')
+    except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as reqErr:
+        # logger.debug(f'error in do_request(): {reqErr=}')
+        DISCARDED_BY_TIMEOUT += 1
+        return f'error in do_request(): {reqErr}'
+
+    except Exception as unknwErr:
+        DISCARDED_BY_UNKNW_ERR += 1
+        # logger.debug(f'error in do_request(): {unknwErr=}')
         return f'error in do_request(): {reqErr}'
 
 
@@ -192,6 +206,10 @@ def get_all_rpc_ips():
 
 def get_snapshot_slot(rpc_address: str):
     global FULL_LOCAL_SNAP_SLOT
+    global DISCARDED_BY_ARCHIVE_TYPE
+    global DISCARDED_BY_LATENCY
+    global DISCARDED_BY_SLOT
+
     pbar.update(1)
     url = f'http://{rpc_address}/snapshot.tar.bz2'
     inc_url = f'http://{rpc_address}/incremental-snapshot.tar.bz2'
@@ -199,21 +217,26 @@ def get_snapshot_slot(rpc_address: str):
     try:
         r = do_request(url_=inc_url, method_='head', timeout_=1)
         if 'location' in str(r.headers) and 'error' not in str(r.text) and r.elapsed.total_seconds() * 1000 > MAX_LATENCY:
+            DISCARDED_BY_LATENCY += 1
             return None
+    
 
         if 'location' in str(r.headers) and 'error' not in str(r.text):
             snap_location_ = r.headers["location"]
             if snap_location_.endswith('tar') is True:
+                DISCARDED_BY_ARCHIVE_TYPE += 1
                 return None
             incremental_snap_slot = int(snap_location_.split("-")[2])
             snap_slot_ = int(snap_location_.split("-")[3])
             slots_diff = current_slot - snap_slot_
 
             if slots_diff < -100:
-                print(f'Something wrong with this snapshot\\rpc_node - {slots_diff=}. This node will be skipped {rpc_address=}')
+                logger.error(f'Something wrong with this snapshot\\rpc_node - {slots_diff=}. This node will be skipped {rpc_address=}')
+                DISCARDED_BY_SLOT += 1
                 return
 
             if slots_diff > MAX_SNAPSHOT_AGE_IN_SLOTS:
+                DISCARDED_BY_SLOT += 1
                 return
 
             if FULL_LOCAL_SNAP_SLOT == incremental_snap_slot:
@@ -242,6 +265,7 @@ def get_snapshot_slot(rpc_address: str):
             snap_location_ = r.headers["location"]
             # filtering uncompressed archives
             if snap_location_.endswith('tar') is True:
+                DISCARDED_BY_ARCHIVE_TYPE += 1
                 return None
             full_snap_slot_ = int(snap_location_.split("-")[1])
             slots_diff_full = current_slot - full_snap_slot_
@@ -257,7 +281,7 @@ def get_snapshot_slot(rpc_address: str):
                 return
         return None
 
-    except Exception as getSnapErr:
+    except Exception as getSnapErr_:
         return None
 
 
@@ -325,6 +349,10 @@ def main_worker():
         pool = ThreadPool()
         pool.map(get_snapshot_slot, rpc_nodes)
         logger.info(f'Found suitable RPCs: {len(json_data["rpc_nodes"])}')
+        logger.info(f'The following information shows for what reason and how many RPCs were skipped.'
+        f'Timeout most probably mean, that node RPC port does not respond (port is closed)\n'
+        f'{DISCARDED_BY_ARCHIVE_TYPE=} | {DISCARDED_BY_LATENCY=} |'
+        f' {DISCARDED_BY_SLOT=} | {DISCARDED_BY_TIMEOUT=} | {DISCARDED_BY_UNKNW_ERR=}') 
 
         if len(json_data["rpc_nodes"]) == 0:
             logger.info(f'No snapshot nodes were found matching the given parameters: {args.max_snapshot_age=}')
@@ -401,7 +429,8 @@ def main_worker():
                 logger.info(f'{down_speed_mb=} < {MIN_DOWNLOAD_SPEED_MB=}')
 
         if best_snapshot_node is {}:
-            logger.error(f'No snapshot nodes were found matching the given parameters:{args.min_download_speed=}\n'
+            logger.error(f'No snapshot nodes were found matching the given parameters:{args.min_download_speed=}'
+                  f'\nTry restarting the script with --with_private_rpc'
                   f'RETRY #{NUM_OF_ATTEMPTS}\\{NUM_OF_MAX_ATTEMPTS}')
             return 1
 
@@ -414,7 +443,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.1")
+logger.info("Version: 0.3.2")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
