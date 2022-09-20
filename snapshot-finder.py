@@ -443,7 +443,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.2")
+logger.info("Version: 0.3.3")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
@@ -484,6 +484,10 @@ while NUM_OF_ATTEMPTS <= NUM_OF_MAX_ATTEMPTS:
     if worker_result == 0:
         logger.info("Done")
         exit(0)
+
+    if worker_result != 0:
+        logger.info("Now trying with flag --with_private_rpc")
+        WITH_PRIVATE_RPC = True
 
     if NUM_OF_ATTEMPTS >= NUM_OF_MAX_ATTEMPTS:
         logger.error(f'Could not find a suitable snapshot --> exit')
