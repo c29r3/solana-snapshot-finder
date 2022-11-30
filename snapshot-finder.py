@@ -177,7 +177,7 @@ def get_current_slot():
             return None
 
     except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as connectErr:
-        logger.debug(f'Can\'t get current slot\n{r.text}')
+        logger.debug(f'Can\'t get current slot\n{connectErr}')
     except:
         logger.error(f'Can\'t get current slot')
         logger.debug(r.text)
