@@ -173,9 +173,14 @@ def get_current_slot():
             return r.json()["result"]
         else:
             logger.error(f'Can\'t get current slot')
+            logger.debug(r.text)
             return None
+
+    except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as connectErr:
+        logger.debug(f'Can\'t get current slot\n{r.text}')
     except:
         logger.error(f'Can\'t get current slot')
+        logger.debug(r.text)
         return None
 
 
@@ -443,7 +448,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.3")
+logger.info("Version: 0.3.4")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
