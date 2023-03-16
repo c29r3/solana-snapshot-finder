@@ -23,6 +23,8 @@ parser.add_argument('-r', '--rpc_address',
     help='RPC address of the node from which the current slot number will be taken\n'
          'https://api.mainnet-beta.solana.com')
 
+parser.add_argument("--slot", default=0, type=int,
+                     help="search for a snapshot with a specific slot number (useful for network restarts)")
 parser.add_argument('--max_snapshot_age', default=1300, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=60, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_download_speed', type=int, 
@@ -44,8 +46,9 @@ args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
 RPC = args.rpc_address
-WITH_PRIVATE_RPC = args.with_private_rpc
+SPECIFIC_SLOT = int(args.slot)
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
+WITH_PRIVATE_RPC = args.with_private_rpc
 THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
 MAX_DOWNLOAD_SPEED_MB = args.max_download_speed
@@ -173,13 +176,13 @@ def get_current_slot():
             return r.json()["result"]
         else:
             logger.error(f'Can\'t get current slot')
-            logger.debug(r.text)
+            logger.debug(r.status_code)
             return None
 
     except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as connectErr:
         logger.debug(f'Can\'t get current slot\n{connectErr}')
     except Exception as unknwErr:
-        logger.error(f'Can\'t get current slot')
+        logger.error(f'Can\'t get current slot. Make sure you have WGET installed')
         logger.debug(unknwErr)
         return None
 
@@ -224,16 +227,28 @@ def get_snapshot_slot(rpc_address: str):
         if 'location' in str(r.headers) and 'error' not in str(r.text) and r.elapsed.total_seconds() * 1000 > MAX_LATENCY:
             DISCARDED_BY_LATENCY += 1
             return None
-    
 
         if 'location' in str(r.headers) and 'error' not in str(r.text):
             snap_location_ = r.headers["location"]
-            if snap_location_.endswith('tar') is True:
+            if snap_location_.endswith('tar') is True and SPECIFIC_SLOT == 0:
                 DISCARDED_BY_ARCHIVE_TYPE += 1
                 return None
             incremental_snap_slot = int(snap_location_.split("-")[2])
             snap_slot_ = int(snap_location_.split("-")[3])
             slots_diff = current_slot - snap_slot_
+
+            if FULL_LOCAL_SNAP_SLOT == SPECIFIC_SLOT and SPECIFIC_SLOT != 0:
+                json_data["rpc_nodes"].append({
+                    "snapshot_address": rpc_address,
+                    "slots_diff": slots_diff,
+                    "latency": r.elapsed.total_seconds() * 1000,
+                    "files_to_download": [snap_location_]})
+                return
+            
+            if FULL_LOCAL_SNAP_SLOT != SPECIFIC_SLOT and SPECIFIC_SLOT == 0:
+                # skip if value for --slot is specified
+                # because we are only looking for a snapshot of a specific slot number
+                return
 
             if slots_diff < -100:
                 logger.error(f'Something wrong with this snapshot\\rpc_node - {slots_diff=}. This node will be skipped {rpc_address=}')
@@ -315,12 +330,15 @@ def download(url: str):
 
     try:
         # dirty trick with wget. Details here - https://github.com/c29r3/solana-snapshot-finder/issues/11
+        wget_path = subprocess.run(['/usr/bin/which', 'wget'],
+                        stdout=subprocess.PIPE, 
+                        universal_newlines=True).stdout.replace('\n', '')
         if MAX_DOWNLOAD_SPEED_MB is not None:
-            process = subprocess.run(['/usr/bin/wget', f'--limit-rate={MAX_DOWNLOAD_SPEED_MB}M', '--trust-server-names', url, f'-O{temp_fname}'], 
+            process = subprocess.run([wget_path, f'--limit-rate={MAX_DOWNLOAD_SPEED_MB}M', '--trust-server-names', url, f'-O{temp_fname}'], 
               stdout=subprocess.PIPE,
               universal_newlines=True)
         else:
-            process = subprocess.run(['/usr/bin/wget', '--trust-server-names', url, f'-O{temp_fname}'], 
+            process = subprocess.run([wget_path, '--trust-server-names', url, f'-O{temp_fname}'], 
               stdout=subprocess.PIPE,
               universal_newlines=True)
 
@@ -448,7 +466,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.4")
+logger.info("Version: 0.3.5")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
@@ -477,7 +495,11 @@ json_data = ({"last_update_at": 0.0,
 
 
 while NUM_OF_ATTEMPTS <= NUM_OF_MAX_ATTEMPTS:
-    current_slot = get_current_slot()
+    if SPECIFIC_SLOT != 0 and type(SPECIFIC_SLOT) is int:
+        current_slot = SPECIFIC_SLOT
+        MAX_SNAPSHOT_AGE_IN_SLOTS = 0
+    else:
+        current_slot = get_current_slot()
     logger.info(f'Attempt number: {NUM_OF_ATTEMPTS}. Total attempts: {NUM_OF_MAX_ATTEMPTS}')
     NUM_OF_ATTEMPTS += 1
 
