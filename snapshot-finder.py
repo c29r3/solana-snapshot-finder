@@ -3,6 +3,7 @@ import os
 import glob
 import requests
 import time
+import shutil
 import math
 import json
 import sys
@@ -23,6 +24,8 @@ parser.add_argument('-r', '--rpc_address',
     help='RPC address of the node from which the current slot number will be taken\n'
          'https://api.mainnet-beta.solana.com')
 
+parser.add_argument("--slot", default=0, type=int,
+                     help="search for a snapshot with a specific slot number (useful for network restarts)")
 parser.add_argument('--max_snapshot_age', default=1300, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=60, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_download_speed', type=int, 
@@ -34,7 +37,7 @@ parser.add_argument('--measurement_time', default=7, type=int, help='Time in sec
 parser.add_argument('--snapshot_path', type=str, default=".", help='The location where the snapshot will be downloaded (absolute path).'
                                                                      ' Example: /home/ubuntu/solana/validator-ledger')
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
-parser.add_argument('--sleep', default=30, type=int, help='Sleep before next retry (seconds)')
+parser.add_argument('--sleep', default=7, type=int, help='Sleep before next retry (seconds)')
 parser.add_argument('--sort_order', default='slots_diff', type=str, help='Priority way to sort the found servers. latency or slots_diff')
 parser.add_argument('-b', '--blacklist', default='', type=str, help='If the same corrupted archive is constantly downloaded, you can exclude it.'
                     ' Specify either the number of the slot you want to exclude, or the hash of the archive name. '
@@ -44,8 +47,9 @@ args = parser.parse_args()
 
 DEFAULT_HEADERS = {"Content-Type": "application/json"}
 RPC = args.rpc_address
-WITH_PRIVATE_RPC = args.with_private_rpc
+SPECIFIC_SLOT = int(args.slot)
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
+WITH_PRIVATE_RPC = args.with_private_rpc
 THREADS_COUNT = args.threads_count
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
 MAX_DOWNLOAD_SPEED_MB = args.max_download_speed
@@ -57,9 +61,6 @@ SLEEP_BEFORE_RETRY = args.sleep
 NUM_OF_ATTEMPTS = 1
 SORT_ORDER = args.sort_order
 BLACKLIST = str(args.blacklist).split(",")
-AVERAGE_SNAPSHOT_FILE_SIZE_MB = 2500.0
-AVERAGE_INCREMENT_FILE_SIZE_MB = 200.0
-AVERAGE_CATCHUP_SPEED = 2.0
 FULL_LOCAL_SNAP_SLOT = 0
 
 current_slot = 0
@@ -173,14 +174,13 @@ def get_current_slot():
             return r.json()["result"]
         else:
             logger.error(f'Can\'t get current slot')
-            logger.debug(r.text)
+            logger.debug(r.status_code)
             return None
 
     except (ReadTimeout, ConnectTimeout, HTTPError, Timeout, ConnectionError) as connectErr:
         logger.debug(f'Can\'t get current slot\n{connectErr}')
     except Exception as unknwErr:
-        logger.error(f'Can\'t get current slot')
-        logger.debug(unknwErr)
+        logger.error(f'Can\'t get current slot\n{unknwErr}')
         return None
 
 
@@ -224,7 +224,6 @@ def get_snapshot_slot(rpc_address: str):
         if 'location' in str(r.headers) and 'error' not in str(r.text) and r.elapsed.total_seconds() * 1000 > MAX_LATENCY:
             DISCARDED_BY_LATENCY += 1
             return None
-    
 
         if 'location' in str(r.headers) and 'error' not in str(r.text):
             snap_location_ = r.headers["location"]
@@ -249,8 +248,7 @@ def get_snapshot_slot(rpc_address: str):
                     "snapshot_address": rpc_address,
                     "slots_diff": slots_diff,
                     "latency": r.elapsed.total_seconds() * 1000,
-                    "files_to_download": [snap_location_],
-                    "cost": AVERAGE_INCREMENT_FILE_SIZE_MB / MIN_DOWNLOAD_SPEED_MB + slots_diff / AVERAGE_CATCHUP_SPEED
+                    "files_to_download": [snap_location_]
                 })
                 return
 
@@ -261,7 +259,6 @@ def get_snapshot_slot(rpc_address: str):
                     "slots_diff": slots_diff,
                     "latency": r.elapsed.total_seconds() * 1000,
                     "files_to_download": [r.headers["location"], r2.headers['location']],
-                    "cost": (AVERAGE_SNAPSHOT_FILE_SIZE_MB + AVERAGE_INCREMENT_FILE_SIZE_MB) / MIN_DOWNLOAD_SPEED_MB + slots_diff / AVERAGE_CATCHUP_SPEED
                 })
                 return
 
@@ -280,8 +277,7 @@ def get_snapshot_slot(rpc_address: str):
                     "snapshot_address": rpc_address,
                     "slots_diff": slots_diff_full,
                     "latency": r.elapsed.total_seconds() * 1000,
-                    "files_to_download": [snap_location_],
-                    "cost": AVERAGE_SNAPSHOT_FILE_SIZE_MB / MIN_DOWNLOAD_SPEED_MB + slots_diff_full / AVERAGE_CATCHUP_SPEED
+                    "files_to_download": [snap_location_]
                 })
                 return
         return None
@@ -316,11 +312,11 @@ def download(url: str):
     try:
         # dirty trick with wget. Details here - https://github.com/c29r3/solana-snapshot-finder/issues/11
         if MAX_DOWNLOAD_SPEED_MB is not None:
-            process = subprocess.run(['/usr/bin/wget', f'--limit-rate={MAX_DOWNLOAD_SPEED_MB}M', '--trust-server-names', url, f'-O{temp_fname}'], 
+            process = subprocess.run([wget_path, f'--limit-rate={MAX_DOWNLOAD_SPEED_MB}M', '--trust-server-names', url, f'-O{temp_fname}'], 
               stdout=subprocess.PIPE,
               universal_newlines=True)
         else:
-            process = subprocess.run(['/usr/bin/wget', '--trust-server-names', url, f'-O{temp_fname}'], 
+            process = subprocess.run([wget_path, '--trust-server-names', url, f'-O{temp_fname}'], 
               stdout=subprocess.PIPE,
               universal_newlines=True)
 
@@ -448,7 +444,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.4")
+logger.info("Version: 0.3.5")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
@@ -468,6 +464,12 @@ except IOError:
     logger.error(f'\nCheck {SNAPSHOT_PATH=} and permissions')
     Path(SNAPSHOT_PATH).mkdir(parents=True, exist_ok=True)
 
+wget_path = shutil.which("wget")
+
+if wget_path is None:
+    logger.error("The wget utility was not found in the system, it is required")
+    sys.exit()
+
 json_data = ({"last_update_at": 0.0,
               "last_update_slot": 0,
               "total_rpc_nodes": 0,
@@ -477,7 +479,11 @@ json_data = ({"last_update_at": 0.0,
 
 
 while NUM_OF_ATTEMPTS <= NUM_OF_MAX_ATTEMPTS:
-    current_slot = get_current_slot()
+    if SPECIFIC_SLOT != 0 and type(SPECIFIC_SLOT) is int:
+        current_slot = SPECIFIC_SLOT
+        MAX_SNAPSHOT_AGE_IN_SLOTS = 0
+    else:
+        current_slot = get_current_slot()
     logger.info(f'Attempt number: {NUM_OF_ATTEMPTS}. Total attempts: {NUM_OF_MAX_ATTEMPTS}')
     NUM_OF_ATTEMPTS += 1
 
