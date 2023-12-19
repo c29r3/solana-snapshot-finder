@@ -6,6 +6,7 @@ import time
 import shutil
 import math
 import json
+import threading
 import sys
 import argparse
 import logging
@@ -17,7 +18,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import statistics
 
 parser = argparse.ArgumentParser(description='Solana snapshot finder')
-parser.add_argument('-t', '--threads-count', default=1000, type=int,
+parser.add_argument('-t', '--threads-count', default=os.cpu_count(), type=int,
     help='the number of concurrently running threads that check snapshots for rpc nodes')
 parser.add_argument('-r', '--rpc_address',
     default='https://api.mainnet-beta.solana.com', type=str,
@@ -51,6 +52,7 @@ SPECIFIC_SLOT = int(args.slot)
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
 WITH_PRIVATE_RPC = args.with_private_rpc
 THREADS_COUNT = args.threads_count
+
 MIN_DOWNLOAD_SPEED_MB = args.min_download_speed
 MAX_DOWNLOAD_SPEED_MB = args.max_download_speed
 SPEED_MEASURE_TIME_SEC = args.measurement_time
@@ -329,6 +331,7 @@ def download(url: str):
 
 def main_worker():
     try:
+
         global FULL_LOCAL_SNAP_SLOT
         rpc_nodes = list(set(get_all_rpc_ips()))
         global pbar
@@ -379,6 +382,8 @@ def main_worker():
 
         rpc_nodes_inc_sorted = []
         logger.info("TRYING TO DOWNLOADING FILES")
+        threads = []
+        threadpool = ThreadPool(THREADS_COUNT)
         for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
             # filter blacklisted snapshots
             if BLACKLIST != ['']:
@@ -386,48 +391,61 @@ def main_worker():
                     logger.info(f'{i}\\{len(json_data["rpc_nodes"])} BLACKLISTED --> {rpc_node}')
                     continue
 
-            logger.info(f'{i}\\{len(json_data["rpc_nodes"])} checking the speed {rpc_node}')
+            logger.info(f'{i}\\{len(json_data["rpc_nodes"])} queueing thread to check the speed {rpc_node}')
             if rpc_node["snapshot_address"] in unsuitable_servers:
                 logger.info(f'Rpc node already in unsuitable list --> skip {rpc_node["snapshot_address"]}')
                 continue
+            threads.append(threadpool.apply_async(measure_speed, (rpc_node["snapshot_address"], SPEED_MEASURE_TIME_SEC)))
 
-            down_speed_bytes = measure_speed(url=rpc_node["snapshot_address"], measure_time=SPEED_MEASURE_TIME_SEC)
-            down_speed_mb = convert_size(down_speed_bytes)
-            if down_speed_bytes < MIN_DOWNLOAD_SPEED_MB * 1e6:
-                logger.info(f'Too slow: {rpc_node=} {down_speed_mb=}')
-                unsuitable_servers.add(rpc_node["snapshot_address"])
+        down_speed_bytes = 0
+        for ti in range(0, len(threads)):
+            thread = threads[ti]
+            if thread.get() > down_speed_bytes:
+                down_speed_bytes = thread.get()
+
+                println = f'{rpc_node["snapshot_address"]} {convert_size(down_speed_bytes)}'
+                logger.info(println)
+            
+        for i, rpc_node in enumerate(json_data["rpc_nodes"], start=1):
+            if rpc_node["snapshot_address"] in unsuitable_servers:
                 continue
+            if threads[i-1].get() == down_speed_bytes:
+                down_speed_mb = convert_size(down_speed_bytes)
+                if down_speed_bytes < MIN_DOWNLOAD_SPEED_MB * 1e6:
+                    logger.info(f'Too slow: {rpc_node=} {down_speed_mb=}')
+                    unsuitable_servers.add(rpc_node["snapshot_address"])
+                    continue
 
-            elif down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
-                logger.info(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
-                for path in reversed(rpc_node["files_to_download"]):
-                    # do not download full snapshot if it already exists locally
-                    if str(path).startswith("/snapshot-"):
-                        full_snap_slot__ = path.split("-")[1]
-                        if full_snap_slot__ == FULL_LOCAL_SNAP_SLOT:
-                            continue
+                elif down_speed_bytes >= MIN_DOWNLOAD_SPEED_MB * 1e6:
+                    logger.info(f'Suitable snapshot server found: {rpc_node=} {down_speed_mb=}')
+                    for path in reversed(rpc_node["files_to_download"]):
+                        # do not download full snapshot if it already exists locally
+                        if str(path).startswith("/snapshot-"):
+                            full_snap_slot__ = path.split("-")[1]
+                            if full_snap_slot__ == FULL_LOCAL_SNAP_SLOT:
+                                continue
 
-                    
-                    if 'incremental' in path:
-                        r = do_request(f'http://{rpc_node["snapshot_address"]}/incremental-snapshot.tar.bz2', method_='head', timeout_=2)
-                        if 'location' in str(r.headers) and 'error' not in str(r.text):
-                            best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{r.headers["location"]}'
+                        
+                        if 'incremental' in path:
+                            r = do_request(f'http://{rpc_node["snapshot_address"]}/incremental-snapshot.tar.bz2', method_='head', timeout_=2)
+                            if 'location' in str(r.headers) and 'error' not in str(r.text):
+                                best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{r.headers["location"]}'
+                            else:
+                                best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
+
                         else:
                             best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
+                        logger.info(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
+                        download(url=best_snapshot_node)
+                    return 0
 
-                    else:
-                        best_snapshot_node = f'http://{rpc_node["snapshot_address"]}{path}'
-                    logger.info(f'Downloading {best_snapshot_node} snapshot to {SNAPSHOT_PATH}')
-                    download(url=best_snapshot_node)
-                return 0
+                elif i > num_of_rpc_to_check:
+                    logger.info(f'The limit on the number of RPC nodes from'
+                    ' which we measure the speed has been reached {num_of_rpc_to_check=}\n')
+                    break
 
-            elif i > num_of_rpc_to_check:
-                logger.info(f'The limit on the number of RPC nodes from'
-                ' which we measure the speed has been reached {num_of_rpc_to_check=}\n')
-                break
-
-            else:
-                logger.info(f'{down_speed_mb=} < {MIN_DOWNLOAD_SPEED_MB=}')
+                else:
+                    logger.info(f'{down_speed_mb=} < {MIN_DOWNLOAD_SPEED_MB=}')
 
         if best_snapshot_node is {}:
             logger.error(f'No snapshot nodes were found matching the given parameters:{args.min_download_speed=}'
