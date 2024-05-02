@@ -24,8 +24,7 @@ options:
   -t THREADS_COUNT, --threads-count THREADS_COUNT
                         the number of concurrently running threads that check snapshots for rpc nodes
   -r RPC_ADDRESS, --rpc_address RPC_ADDRESS
-                        RPC address of the node from which the current slot number will be taken https://api.mainnet-
-                        beta.solana.com
+                        RPC address of the node from which the current slot number will be taken https://api.mainnet-beta.solana.com
   --slot SLOT           search for a snapshot with a specific slot number (useful for network restarts)
   --max_snapshot_age MAX_SNAPSHOT_AGE
                         How many slots ago the snapshot was created (in slots)
@@ -41,17 +40,20 @@ options:
   --measurement_time MEASUREMENT_TIME
                         Time in seconds during which the script will measure the download speed
   --snapshot_path SNAPSHOT_PATH
-                        The location where the snapshot will be downloaded (absolute path). Example:
-                        /home/ubuntu/solana/validator-ledger
+                        The location where the snapshot will be downloaded (absolute path). Example: /home/ubuntu/solana/validator-
+                        ledger
   --num_of_retries NUM_OF_RETRIES
                         The number of retries if a suitable server for downloading the snapshot was not found
   --sleep SLEEP         Sleep before next retry (seconds)
   --sort_order SORT_ORDER
                         Priority way to sort the found servers. latency or slots_diff
+  -ipb IP_BLACKLIST, --ip_blacklist IP_BLACKLIST
+                        Comma separated list of ip addresse (ip:port) that will be excluded from the scan. Example: -ipb
+                        1.1.1.1:8899,8.8.8.8:8899
   -b BLACKLIST, --blacklist BLACKLIST
-                        If the same corrupted archive is constantly downloaded, you can exclude it. Specify either the number of
-                        the slot you want to exclude, or the hash of the archive name. You can specify several, separated by
-                        commas. Example: -b 135501350,135501360 or --blacklist 135501350,some_hash
+                        If the same corrupted archive is constantly downloaded, you can exclude it. Specify either the number of the
+                        slot you want to exclude, or the hash of the archive name. You can specify several, separated by commas.
+                        Example: -b 135501350,135501360 or --blacklist 135501350,some_hash
   -v, --verbose         increase output verbosity to DEBUG
 ```
 ![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)

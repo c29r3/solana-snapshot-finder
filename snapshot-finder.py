@@ -1,4 +1,3 @@
-from distutils.log import debug
 import os
 import glob
 import requests
@@ -39,6 +38,7 @@ parser.add_argument('--snapshot_path', type=str, default=".", help='The location
 parser.add_argument('--num_of_retries', default=5, type=int, help='The number of retries if a suitable server for downloading the snapshot was not found')
 parser.add_argument('--sleep', default=7, type=int, help='Sleep before next retry (seconds)')
 parser.add_argument('--sort_order', default='slots_diff', type=str, help='Priority way to sort the found servers. latency or slots_diff')
+parser.add_argument('-ipb', '--ip_blacklist', default='', type=str, help='Comma separated list of ip addresse (ip:port) that will be excluded from the scan. Example: -ipb 1.1.1.1:8899,8.8.8.8:8899')
 parser.add_argument('-b', '--blacklist', default='', type=str, help='If the same corrupted archive is constantly downloaded, you can exclude it.'
                     ' Specify either the number of the slot you want to exclude, or the hash of the archive name. '
                     'You can specify several, separated by commas. Example: -b 135501350,135501360 or --blacklist 135501350,some_hash')
@@ -61,6 +61,7 @@ SLEEP_BEFORE_RETRY = args.sleep
 NUM_OF_ATTEMPTS = 1
 SORT_ORDER = args.sort_order
 BLACKLIST = str(args.blacklist).split(",")
+IP_BLACKLIST = str(args.ip_blacklist).split(",")
 FULL_LOCAL_SNAP_SLOT = 0
 
 current_slot = 0
@@ -202,6 +203,11 @@ def get_all_rpc_ips():
             rpc_ips = [rpc["rpc"] for rpc in r.json()["result"] if rpc["rpc"] is not None]
 
         rpc_ips = list(set(rpc_ips))
+        logger.debug(f'RPC_IPS LEN before blacklisting {len(rpc_ips)}')
+        # removing blacklisted ip addresses
+        if IP_BLACKLIST is not None:
+            rpc_ips = list(set(rpc_ips) - set(IP_BLACKLIST))
+        logger.debug(f'RPC_IPS LEN after blacklisting {len(rpc_ips)}')
         return rpc_ips
 
     else:
@@ -444,7 +450,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.5")
+logger.info("Version: 0.3.6")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
