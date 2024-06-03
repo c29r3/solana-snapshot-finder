@@ -195,20 +195,16 @@ def get_all_rpc_ips():
     d = '{"jsonrpc":"2.0", "id":1, "method":"getClusterNodes"}'
     r = do_request(url_=RPC, method_='post', data_=d, timeout_=25)
     if 'result' in str(r.text):
-        if WITH_PRIVATE_RPC is True:
-            rpc_ips = []
-            for node in r.json()["result"]:
-                if SPECIFIC_VERSION is not None and node["version"] != SPECIFIC_VERSION:
-                    DISCARDED_BY_VERSION += 1
-                    continue
-                if node["rpc"] is not None:
-                    rpc_ips.append(node["rpc"])
-                else:
-                    gossip_ip = node["gossip"].split(":")[0]
-                    rpc_ips.append(f'{gossip_ip}:8899')
-
-        else:
-            rpc_ips = [rpc["rpc"] for rpc in r.json()["result"] if rpc["rpc"] is not None]
+        rpc_ips = []
+        for node in r.json()["result"]:
+            if SPECIFIC_VERSION is not None and node["version"] != SPECIFIC_VERSION:
+                DISCARDED_BY_VERSION += 1
+                continue
+            if node["rpc"] is not None:
+                rpc_ips.append(node["rpc"])
+            elif WITH_PRIVATE_RPC is True:
+                gossip_ip = node["gossip"].split(":")[0]
+                rpc_ips.append(f'{gossip_ip}:8899')
 
         rpc_ips = list(set(rpc_ips))
         logger.debug(f'RPC_IPS LEN before blacklisting {len(rpc_ips)}')
