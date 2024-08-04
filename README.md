@@ -1,23 +1,23 @@
 # solana-snapshot-finder
-Automatic search and download of snapshots for Solana  
+Automatic search and download of snapshots for Solana
 
-## Navigation  
+## Navigation
 
 * [Description](#what-exactly-does-the-script-do)
 * [Getting Started]()
-    - [Using docker](#run-via-docker)  
-    - [Without docker](#without-docker)  
+    - [Using docker](#run-via-docker)
+    - [Without docker](#without-docker)
 * [How to update](#update)
 
-## What exactly does the script do:  
-1. Finds all available RPCs  
-2. Get the number of the current slot  
-3. In multi-threaded mode, checks the slot numbers of all snapshots on all RPCs  
+## What exactly does the script do:
+1. Finds all available RPCs
+2. Get the number of the current slot
+3. In multi-threaded mode, checks the slot numbers of all snapshots on all RPCs
 *Starting from version 0.1.3, only the first 10 RPCs speed are tested in a loop. [See details here](https://github.com/c29r3/solana-snapshot-finder/releases/tag/0.1.3)
 5. List of RPCs sorted by lowest latency
 `slots_diff = current_slot - snapshot_slot`
-5. Checks the download speed from RPC with the most recent snapshot. If `download_speed <min_download_speed`, then it checks the speed at the next node.  
-6. Download snapshot  
+5. Checks the download speed from RPC with the most recent snapshot. If `download_speed <min_download_speed`, then it checks the speed at the next node.
+6. Download snapshot
 ```bash
 options:
   -h, --help            show this help message and exit
@@ -63,8 +63,8 @@ options:
 ```
 ![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)
 
-### Without docker   
-Install requirements  
+### Without docker
+Install requirements
 ```bash
 sudo apt-get update \
 && sudo apt-get install python3-venv git -y \
@@ -75,20 +75,20 @@ sudo apt-get update \
 && pip3 install -r requirements.txt
 ```
 
-Start script  
-Mainnet  
+Start script
+Mainnet
 ```python
 python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger
-``` 
+```
 `$HOME/solana/validator-ledger/` - path to your `validator-ledger`
 
-TdS  
+Testnet
 ```python
 python3 snapshot-finder.py --snapshot_path $HOME/solana/validator-ledger -r http://api.testnet.solana.com
-``` 
+```
 
-### Run via docker  
-Mainnet  
+### Run via docker
+Mainnet
 ```bash
 sudo docker pull c29r3/solana-snapshot-finder:latest; \
 sudo docker run -it --rm \
@@ -99,7 +99,7 @@ c29r3/solana-snapshot-finder:latest \
 ```
 *`~/solana/validator-ledger` - path to validator-ledger, where snapshots stored*
 
-TdS  
+Testnet
 ```bash
 sudo docker pull c29r3/solana-snapshot-finder:latest; \
 sudo docker run -it --rm \
@@ -110,5 +110,5 @@ c29r3/solana-snapshot-finder:latest \
 -r http://api.testnet.solana.com
 ```
 
-## Update  
+## Update
 `sudo docker pull c29r3/solana-snapshot-finder:latest`
