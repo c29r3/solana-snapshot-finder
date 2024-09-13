@@ -1,6 +1,8 @@
 # solana-snapshot-finder
 Automatic search and download of snapshots for Solana  
 
+Also check online public RPC finder - https://solana.rpc-finder.com/
+
 ## Navigation  
 
 * [Description](#what-exactly-does-the-script-do)
