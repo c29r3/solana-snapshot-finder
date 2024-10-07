@@ -199,10 +199,8 @@ def get_all_rpc_ips():
     if 'result' in str(r.text):
         rpc_ips = []
         for node in r.json()["result"]:
-            if WILDCARD_VERSION is not None and node["version"] and WILDCARD_VERSION not in node["version"]:
-                DISCARDED_BY_VERSION += 1
-                continue
-            elif SPECIFIC_VERSION is not None and node["version"] and node["version"] != SPECIFIC_VERSION:
+            if (WILDCARD_VERSION is not None and node["version"] and WILDCARD_VERSION not in node["version"]) or \
+               (SPECIFIC_VERSION is not None and node["version"] and node["version"] != SPECIFIC_VERSION):
                 DISCARDED_BY_VERSION += 1
                 continue
             if node["rpc"] is not None:
