@@ -26,6 +26,7 @@ parser.add_argument('-r', '--rpc_address',
 parser.add_argument("--slot", default=0, type=int,
                      help="search for a snapshot with a specific slot number (useful for network restarts)")
 parser.add_argument("--version", default=None, help="search for a snapshot from a specific version node")
+parser.add_argument("--wildcard_version", default=None, help="search for a snapshot with a major / minor version e.g. 1.18 (excluding .23)")
 parser.add_argument('--max_snapshot_age', default=1300, type=int, help='How many slots ago the snapshot was created (in slots)')
 parser.add_argument('--min_download_speed', default=60, type=int, help='Minimum average snapshot download speed in megabytes')
 parser.add_argument('--max_download_speed', type=int,
@@ -50,6 +51,7 @@ DEFAULT_HEADERS = {"Content-Type": "application/json"}
 RPC = args.rpc_address
 SPECIFIC_SLOT = int(args.slot)
 SPECIFIC_VERSION = args.version
+WILDCARD_VERSION = args.wildcard_version
 MAX_SNAPSHOT_AGE_IN_SLOTS = args.max_snapshot_age
 WITH_PRIVATE_RPC = args.with_private_rpc
 THREADS_COUNT = args.threads_count
@@ -197,7 +199,10 @@ def get_all_rpc_ips():
     if 'result' in str(r.text):
         rpc_ips = []
         for node in r.json()["result"]:
-            if SPECIFIC_VERSION is not None and node["version"] != SPECIFIC_VERSION:
+            if WILDCARD_VERSION is not None and node["version"] and WILDCARD_VERSION not in node["version"]:
+                DISCARDED_BY_VERSION += 1
+                continue
+            elif SPECIFIC_VERSION is not None and node["version"] and node["version"] != SPECIFIC_VERSION:
                 DISCARDED_BY_VERSION += 1
                 continue
             if node["rpc"] is not None:
