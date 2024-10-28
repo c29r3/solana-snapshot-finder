@@ -30,6 +30,8 @@ options:
                         https://api.mainnet-beta.solana.com
   --slot SLOT           search for a snapshot with a specific slot number (useful for network restarts)
   --version VERSION     search for a snapshot from a specific version node
+  --wildcard_version WILDCARD_VERSION
+                        search for a snapshot with a major / minor version e.g. 1.18 (excluding .23)
   --max_snapshot_age MAX_SNAPSHOT_AGE
                         How many slots ago the snapshot was created (in slots)
   --min_download_speed MIN_DOWNLOAD_SPEED
@@ -54,13 +56,13 @@ options:
   --sort_order SORT_ORDER
                         Priority way to sort the found servers. latency or slots_diff
   -ipb IP_BLACKLIST, --ip_blacklist IP_BLACKLIST
-                        Comma separated list of ip addresse (ip:port) that will be excluded from the
-                        scan. Example: -ipb 1.1.1.1:8899,8.8.8.8:8899
+                        Comma separated list of ip addresse (ip:port) that will be excluded from the scan.
+                        Example: -ipb 1.1.1.1:8899,8.8.8.8:8899
   -b BLACKLIST, --blacklist BLACKLIST
-                        If the same corrupted archive is constantly downloaded, you can exclude it.
-                        Specify either the number of the slot you want to exclude, or the hash of the
-                        archive name. You can specify several, separated by commas. Example: -b
-                        135501350,135501360 or --blacklist 135501350,some_hash
+                        If the same corrupted archive is constantly downloaded, you can exclude it. Specify
+                        either the number of the slot you want to exclude, or the hash of the archive name.
+                        You can specify several, separated by commas. Example: -b 135501350,135501360 or
+                        --blacklist 135501350,some_hash
   -v, --verbose         increase output verbosity to DEBUG
 ```
 ![alt text](https://raw.githubusercontent.com/c29r3/solana-snapshot-finder/aec9a59a7517a5049fa702675bdc8c770acbef99/2021-07-23_22-38.png?raw=true)

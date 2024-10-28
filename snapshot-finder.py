@@ -458,7 +458,7 @@ def main_worker():
         return 1
 
 
-logger.info("Version: 0.3.7")
+logger.info("Version: 0.3.8")
 logger.info("https://github.com/c29r3/solana-snapshot-finder\n\n")
 logger.info(f'{RPC=}\n'
       f'{MAX_SNAPSHOT_AGE_IN_SLOTS=}\n'
